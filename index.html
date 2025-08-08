@@ -311,9 +311,32 @@
                 <div class="nfc-section">
                     <div class="nfc-icon">📱</div>
                     <h3>NFC Detection</h3>
-                    <p style="margin-bottom: 20px; color: #666;">Tap your device with NFC to connect</p>
+                    <p style="margin-bottom: 15px; color: #666;">Tap your NFC-enabled device to connect</p>
+                    <div style="margin-bottom: 15px;">
+                        <small style="color: #888;">
+                            📋 Requirements: HTTPS + Chrome Browser (Android)<br>
+                            🔧 Make sure NFC is enabled in your phone settings
+                        </small>
+                    </div>
                     <button id="nfc-button" class="nfc-button">🔍 Scan NFC Device</button>
                     <div id="nfc-status"></div>
+                    
+                    <!-- Debug info for troubleshooting -->
+                    <div style="margin-top: 15px; font-size: 12px; color: #666;">
+                        <div>Protocol: <span id="protocol-info"></span></div>
+                        <div>Browser: <span id="browser-info"></span></div>
+                        <div>NFC API: <span id="nfc-api-info"></span></div>
+                    </div>
+                </div>
+                
+                <div class="divider">
+                    <span>OR</span>
+                </div>
+                
+                <div class="qr-section" style="text-align: center; margin-bottom: 20px;">
+                    <h3>📷 QR Code Scanner</h3>
+                    <p style="margin-bottom: 15px; color: #666;">Scan QR code on your device</p>
+                    <button id="qr-button" class="nfc-button">📱 Scan QR Code</button>
                 </div>
                 
                 <div class="divider">
@@ -439,13 +462,44 @@
         let currentDeviceId = null;
         let nfcSupported = false;
 
-        // Check NFC support
-        if ('NDEFReader' in window) {
-            nfcSupported = true;
-        } else {
-            document.getElementById('nfc-button').disabled = true;
-            document.getElementById('nfc-button').textContent = '❌ NFC Not Supported';
+        // Enhanced NFC support check
+        function checkNFCSupport() {
+            // Check if running on HTTPS (required for NFC)
+            if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+                document.getElementById('nfc-button').disabled = true;
+                document.getElementById('nfc-button').textContent = '🔒 HTTPS Required for NFC';
+                showStatus('NFC requires HTTPS connection. Please access via https://', 'error');
+                return false;
+            }
+            
+            // Check NDEFReader support
+            if ('NDEFReader' in window) {
+                nfcSupported = true;
+                return true;
+            } else {
+                // Detect browser and give specific message
+                const isChrome = /Chrome/.test(navigator.userAgent);
+                const isAndroid = /Android/.test(navigator.userAgent);
+                
+                if (isAndroid && !isChrome) {
+                    document.getElementById('nfc-button').disabled = true;
+                    document.getElementById('nfc-button').textContent = '📱 Use Chrome Browser';
+                    showStatus('NFC Web API only works in Chrome browser on Android', 'info');
+                } else {
+                    document.getElementById('nfc-button').disabled = true;
+                    document.getElementById('nfc-button').textContent = '❌ NFC Not Supported';
+                    showStatus('NFC Web API not supported on this device/browser', 'info');
+                }
+                return false;
+            }
         }
+        
+        checkNFCSupport();
+        
+        // Display debug info
+        document.getElementById('protocol-info').textContent = location.protocol;
+        document.getElementById('browser-info').textContent = navigator.userAgent.split(' ').pop();
+        document.getElementById('nfc-api-info').textContent = 'NDEFReader' in window ? '✅ Available' : '❌ Not Available';
 
         // Show status message
         function showStatus(message, type = 'info') {
@@ -456,10 +510,10 @@
             }, 5000);
         }
 
-        // NFC Scan functionality
+        // Enhanced NFC Scan functionality
         document.getElementById('nfc-button').addEventListener('click', async () => {
             if (!nfcSupported) {
-                showStatus('NFC is not supported on this device. Please use manual input.', 'error');
+                showStatus('NFC is not supported. Please use manual input or try Chrome browser.', 'error');
                 return;
             }
 
@@ -467,62 +521,118 @@
             const originalText = button.textContent;
             
             try {
-                button.innerHTML = '<span class="loading"></span>Scanning...';
+                button.innerHTML = '<span class="loading"></span>Requesting Permission...';
                 button.disabled = true;
                 
+                // Request permissions first
+                const permissionStatus = await navigator.permissions.query({ name: 'nfc' });
+                
+                if (permissionStatus.state === 'denied') {
+                    showStatus('NFC permission denied. Please enable NFC in your device settings.', 'error');
+                    return;
+                }
+                
                 const ndef = new NDEFReader();
+                
+                // Start scanning
+                button.innerHTML = '<span class="loading"></span>Scanning...';
                 await ndef.scan();
                 
-                showStatus('NFC scan started. Please tap your device...', 'info');
+                showStatus('✅ NFC scan active! Please tap your NFC tag...', 'success');
+                
+                // Set timeout for scan
+                const scanTimeout = setTimeout(() => {
+                    showStatus('NFC scan timeout. Please try again.', 'error');
+                    button.textContent = originalText;
+                    button.disabled = false;
+                }, 30000); // 30 seconds timeout
                 
                 ndef.addEventListener('reading', ({ message, serialNumber }) => {
+                    clearTimeout(scanTimeout);
+                    
                     let deviceId = null;
+                    
+                    console.log('NFC Reading detected:', { message, serialNumber });
                     
                     // Try to read device ID from NFC data
                     for (const record of message.records) {
+                        console.log('Record:', record);
+                        
                         if (record.recordType === 'text') {
-                            const textDecoder = new TextDecoder(record.encoding);
+                            const textDecoder = new TextDecoder(record.encoding || 'utf-8');
                             const data = textDecoder.decode(record.data);
+                            console.log('Text data:', data);
                             
-                            // Look for device ID pattern
+                            // Look for device ID patterns
                             if (data.startsWith('DEVICE:')) {
                                 deviceId = data.substring(7);
-                            } else if (data.match(/^[A-Z0-9_]+$/)) {
+                            } else if (data.startsWith('ESP')) {
+                                deviceId = data;
+                            } else if (data.match(/^[A-Z0-9_-]+$/)) {
                                 deviceId = data;
                             }
                         } else if (record.recordType === 'url') {
                             const url = new TextDecoder().decode(record.data);
-                            const urlParams = new URLSearchParams(url.split('?')[1]);
+                            console.log('URL data:', url);
+                            
+                            const urlParams = new URLSearchParams(url.split('?')[1] || '');
                             if (urlParams.has('device')) {
                                 deviceId = urlParams.get('device');
+                            }
+                        } else if (record.recordType === 'application/json') {
+                            try {
+                                const jsonData = JSON.parse(new TextDecoder().decode(record.data));
+                                if (jsonData.deviceId) {
+                                    deviceId = jsonData.deviceId;
+                                }
+                            } catch (e) {
+                                console.log('JSON parse error:', e);
                             }
                         }
                     }
                     
-                    // Fallback to serial number if no device ID found
+                    // Fallback to serial number
                     if (!deviceId && serialNumber) {
                         deviceId = 'NFC_' + serialNumber.replace(/:/g, '');
                     }
                     
                     if (deviceId) {
+                        showStatus(`✅ NFC device detected: ${deviceId}`, 'success');
                         connectToDevice(deviceId, 'NFC');
                     } else {
-                        showStatus('Could not read device ID from NFC tag. Please try manual input.', 'error');
+                        showStatus('⚠️ No device ID found in NFC tag. Try manual input.', 'error');
+                        // Auto-focus on manual input
+                        document.getElementById('device-uid').focus();
                     }
                     
                     button.textContent = originalText;
                     button.disabled = false;
                 });
                 
-                ndef.addEventListener('readingerror', () => {
-                    showStatus('Error reading NFC tag. Please try again.', 'error');
+                ndef.addEventListener('readingerror', (error) => {
+                    clearTimeout(scanTimeout);
+                    console.error('NFC Read Error:', error);
+                    showStatus('❌ Error reading NFC tag. Please try again.', 'error');
                     button.textContent = originalText;
                     button.disabled = false;
                 });
                 
             } catch (error) {
                 console.error('NFC Error:', error);
-                showStatus('NFC scan failed: ' + error.message, 'error');
+                
+                let errorMessage = 'NFC scan failed: ';
+                
+                if (error.name === 'NotAllowedError') {
+                    errorMessage += 'Permission denied. Please enable NFC in settings.';
+                } else if (error.name === 'NotSupportedError') {
+                    errorMessage += 'NFC not supported on this device.';
+                } else if (error.name === 'NotReadableError') {
+                    errorMessage += 'NFC hardware busy or unavailable.';
+                } else {
+                    errorMessage += error.message || 'Unknown error';
+                }
+                
+                showStatus(errorMessage, 'error');
                 button.textContent = originalText;
                 button.disabled = false;
             }
