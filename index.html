@@ -1,4 +1,4 @@
-<!doctype html>
+<!-- <!doctype html>
 <html lang="id">
 <head>
   <meta charset="utf-8" />
@@ -192,5 +192,127 @@
       refreshStatus();
     });
   </script>
+</body>
+</html>
+
+ -->
+
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Sensor Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f6f8;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            max-width: 800px;
+            margin: auto;
+        }
+        .value {
+            font-size: 2em;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        canvas {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>IoT Sensor Dashboard</h1>
+    <div class="card">
+        <div class="value">Sensor Value: <span id="sensorValue">0</span></div>
+        <canvas id="sensorChart" height="100"></canvas>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('sensorChart').getContext('2d');
+        let sensorData = [];
+        let labels = [];
+
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Sensor Value',
+                        data: sensorData,
+                        borderColor: 'blue',
+                        fill: false,
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Trendline',
+                        data: [],
+                        borderColor: 'red',
+                        borderDash: [5,5],
+                        fill: false,
+                        pointRadius: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { title: { display: true, text: 'Time (s)' } },
+                    y: { title: { display: true, text: 'Value' } }
+                }
+            }
+        });
+
+        // Fungsi hitung trendline (linear regression)
+        function calculateTrendline(data) {
+            let n = data.length;
+            let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+
+            for (let i = 0; i < n; i++) {
+                sumX += i;
+                sumY += data[i];
+                sumXY += i * data[i];
+                sumXX += i * i;
+            }
+
+            let slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+            let intercept = (sumY - slope * sumX) / n;
+
+            return data.map((_, i) => slope * i + intercept);
+        }
+
+        // Simulasi update data tiap 1 detik
+        setInterval(() => {
+            let newValue = (Math.random() * 100).toFixed(2);
+            document.getElementById('sensorValue').innerText = newValue;
+
+            let time = labels.length;
+            labels.push(time);
+            sensorData.push(parseFloat(newValue));
+
+            if (labels.length > 20) {
+                labels.shift();
+                sensorData.shift();
+            }
+
+            chart.data.datasets[1].data = calculateTrendline(sensorData);
+            chart.update();
+        }, 1000);
+    </script>
+
 </body>
 </html>
