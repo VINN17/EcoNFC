@@ -279,8 +279,13 @@
         </div>
         
         <div class="footer">
-            <p>⚠️ Web NFC API hanya bekerja di browser yang mendukung (Chrome Android, Edge Android)</p>
-            <p>Pastikan NFC aktif di perangkat Anda</p>
+            <p>📱 <strong>Browser yang Mendukung:</strong></p>
+            <p>• Chrome Android (v89+) - <strong>Recommended</strong></p>
+            <p>• Samsung Internet (v14+)</p>
+            <p>• Edge Android (v91+)</p>
+            <br>
+            <p>⚠️ Web NFC API hanya bekerja di Android dengan browser yang mendukung</p>
+            <p>🔒 Pastikan menggunakan HTTPS dan NFC aktif di perangkat</p>
         </div>
     </div>
 
@@ -290,10 +295,17 @@
 
         // Check NFC support
         async function checkNFCSupport() {
+            // Detect browser and platform
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            const isChrome = /Chrome/i.test(navigator.userAgent);
+            const isSamsung = /SamsungBrowser/i.test(navigator.userAgent);
+            const isEdge = /EdgA/i.test(navigator.userAgent);
+            const isFirefox = /Firefox/i.test(navigator.userAgent);
+            
             if ('NDEFReader' in window) {
                 try {
                     const ndef = new NDEFReader();
-                    await ndef.scan();
+                    // Don't auto-start scan, just check if API exists
                     nfcSupported = true;
                     updateStatus('ready', '✅ NFC siap digunakan! Tap tombol untuk mulai scan.');
                 } catch (error) {
@@ -304,8 +316,101 @@
                     }
                 }
             } else {
-                updateStatus('not-supported', '❌ Browser tidak mendukung Web NFC API');
+                // Provide specific guidance based on browser/platform
+                let message = '❌ Browser tidak mendukung Web NFC API\n\n';
+                
+                if (!isAndroid) {
+                    message += '📱 Web NFC hanya tersedia di Android';
+                    updateStatus('not-supported', message);
+                    showBrowserGuidance('not-android');
+                } else if (isFirefox) {
+                    message += '🦊 Firefox belum mendukung Web NFC\n';
+                    message += '💡 Coba Chrome Android atau Samsung Internet';
+                    updateStatus('not-supported', message);
+                    showBrowserGuidance('firefox');
+                } else if (!isChrome && !isSamsung && !isEdge) {
+                    message += '💡 Gunakan Chrome Android, Samsung Internet, atau Edge Android';
+                    updateStatus('not-supported', message);
+                    showBrowserGuidance('unsupported-browser');
+                } else {
+                    message += '🔧 Browser mungkin perlu update atau flag experimental diaktifkan';
+                    updateStatus('not-supported', message);
+                    showBrowserGuidance('needs-update');
+                }
             }
+        }
+        
+        // Show specific guidance based on the issue
+        function showBrowserGuidance(issue) {
+            const guidanceDiv = document.createElement('div');
+            guidanceDiv.className = 'guidance-section';
+            guidanceDiv.style.cssText = `
+                background: #fff3cd;
+                border: 1px solid #ffeaa7;
+                border-radius: 10px;
+                padding: 20px;
+                margin-top: 20px;
+                text-align: left;
+            `;
+            
+            let content = '<h4 style="color: #856404; margin-bottom: 15px;">🔧 Cara Mengatasi:</h4>';
+            
+            switch(issue) {
+                case 'not-android':
+                    content += `
+                        <p><strong>Web NFC hanya bekerja di Android!</strong></p>
+                        <ul>
+                            <li>Buka halaman ini di perangkat Android</li>
+                            <li>Gunakan Chrome Android, Samsung Internet, atau Edge Android</li>
+                            <li>Pastikan NFC aktif di pengaturan perangkat</li>
+                        </ul>
+                    `;
+                    break;
+                case 'firefox':
+                    content += `
+                        <p><strong>Firefox belum mendukung Web NFC</strong></p>
+                        <ol>
+                            <li>Download Chrome Android dari Play Store</li>
+                            <li>Atau gunakan Samsung Internet (jika tersedia)</li>
+                            <li>Buka halaman ini di browser yang sudah didownload</li>
+                        </ol>
+                    `;
+                    break;
+                case 'unsupported-browser':
+                    content += `
+                        <p><strong>Browser tidak mendukung Web NFC</strong></p>
+                        <ol>
+                            <li>Install <strong>Chrome Android</strong> (recommended)</li>
+                            <li>Atau gunakan <strong>Samsung Internet</strong></li>
+                            <li>Atau coba <strong>Edge Android</strong></li>
+                            <li>Buka halaman ini di browser baru</li>
+                        </ol>
+                    `;
+                    break;
+                case 'needs-update':
+                    content += `
+                        <p><strong>Browser mungkin perlu update</strong></p>
+                        <ol>
+                            <li>Update Chrome Android ke versi terbaru</li>
+                            <li>Jika masih tidak bisa, coba aktifkan experimental features:
+                                <ul>
+                                    <li>Buka <code>chrome://flags</code></li>
+                                    <li>Cari "Experimental Web Platform features"</li>
+                                    <li>Set ke "Enabled"</li>
+                                    <li>Restart browser</li>
+                                </ul>
+                            </li>
+                            <li>Pastikan menggunakan HTTPS atau localhost</li>
+                        </ol>
+                    `;
+                    break;
+            }
+            
+            guidanceDiv.innerHTML = content;
+            
+            // Insert after the footer
+            const footer = document.querySelector('.footer');
+            footer.parentNode.insertBefore(guidanceDiv, footer.nextSibling);
         }
 
         function updateStatus(type, message) {
