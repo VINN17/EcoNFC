@@ -3,16 +3,463 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detektor NFC Web</title>
-    <link rel="stylesheet" href="style.css">
+    <title>NFC Reader & Writer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            font-weight: 700;
+        }
+
+        .nfc-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            color: #667eea;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            font-size: 1.1em;
+        }
+
+        .status.ready {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+        }
+
+        .status.scanning {
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+            color: white;
+            animation: blink 1s infinite;
+        }
+
+        .status.error {
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+            color: white;
+        }
+
+        .status.not-supported {
+            background: linear-gradient(45deg, #FF9800, #F57C00);
+            color: white;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.5; }
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .data-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 20px;
+        }
+
+        .data-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .data-display {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            min-height: 100px;
+            border: 2px dashed #ddd;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95em;
+            line-height: 1.6;
+            text-align: left;
+            overflow-wrap: break-word;
+        }
+
+        .write-section {
+            margin-top: 20px;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1em;
+            margin-bottom: 15px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .record-type {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .record-type label {
+            background: #f0f0f0;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .record-type input[type="radio"] {
+            display: none;
+        }
+
+        .record-type input[type="radio"]:checked + span {
+            background: #667eea;
+            color: white;
+        }
+
+        .footer {
+            margin-top: 30px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 30px 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+            }
+        }
+    </style>
 </head>
 <body>
-    <h1>Detektor Tag NFC Web</h1>
-    <p>Klik tombol "Pindai" lalu sentuhkan tag NFC ke pembaca NFC perangkat Anda.</p>
-    <button id="scanButton">Pindai Tag NFC</button>
-    <h2>Hasil Pindaian:</h2>
-    <pre id="log"></pre>
+    <div class="container">
+        <div class="nfc-icon">📡</div>
+        <h1>NFC Reader & Writer</h1>
+        
+        <div id="status" class="status">Mengecek dukungan NFC...</div>
+        
+        <div class="controls">
+            <button id="scanBtn" onclick="startScan()">📖 Scan NFC</button>
+            <button id="writeBtn" onclick="writeNFC()">✏️ Write NFC</button>
+        </div>
+        
+        <div class="data-section">
+            <h3>📋 Data NFC</h3>
+            <div id="nfcData" class="data-display">
+                Tidak ada data. Silakan scan NFC tag untuk membaca data.
+            </div>
+        </div>
+        
+        <div class="data-section write-section">
+            <h3>✍️ Tulis ke NFC</h3>
+            
+            <div class="record-type">
+                <label>
+                    <input type="radio" name="recordType" value="text" checked>
+                    <span>Text</span>
+                </label>
+                <label>
+                    <input type="radio" name="recordType" value="url">
+                    <span>URL</span>
+                </label>
+                <label>
+                    <input type="radio" name="recordType" value="wifi">
+                    <span>WiFi</span>
+                </label>
+            </div>
+            
+            <div id="textInput">
+                <input type="text" id="textData" placeholder="Masukkan text yang akan ditulis...">
+            </div>
+            
+            <div id="urlInput" style="display: none;">
+                <input type="text" id="urlData" placeholder="https://example.com">
+            </div>
+            
+            <div id="wifiInput" style="display: none;">
+                <input type="text" id="wifiSSID" placeholder="Nama WiFi (SSID)">
+                <input type="password" id="wifiPassword" placeholder="Password WiFi">
+                <select id="wifiSecurity" style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 10px; margin-bottom: 15px;">
+                    <option value="WPA">WPA/WPA2</option>
+                    <option value="WEP">WEP</option>
+                    <option value="">Open (Tanpa Password)</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>⚠️ Web NFC API hanya bekerja di browser yang mendukung (Chrome Android, Edge Android)</p>
+            <p>Pastikan NFC aktif di perangkat Anda</p>
+        </div>
+    </div>
 
-    <script src="app.js"></script>
+    <script>
+        let nfcSupported = false;
+        let isScanning = false;
+
+        // Check NFC support
+        async function checkNFCSupport() {
+            if ('NDEFReader' in window) {
+                try {
+                    const ndef = new NDEFReader();
+                    await ndef.scan();
+                    nfcSupported = true;
+                    updateStatus('ready', '✅ NFC siap digunakan! Tap tombol untuk mulai scan.');
+                } catch (error) {
+                    if (error.name === 'NotAllowedError') {
+                        updateStatus('error', '❌ Akses NFC ditolak. Izinkan akses NFC di browser.');
+                    } else {
+                        updateStatus('error', `❌ Error: ${error.message}`);
+                    }
+                }
+            } else {
+                updateStatus('not-supported', '❌ Browser tidak mendukung Web NFC API');
+            }
+        }
+
+        function updateStatus(type, message) {
+            const statusEl = document.getElementById('status');
+            statusEl.className = `status ${type}`;
+            statusEl.textContent = message;
+            
+            // Enable/disable buttons
+            const scanBtn = document.getElementById('scanBtn');
+            const writeBtn = document.getElementById('writeBtn');
+            
+            if (type === 'ready') {
+                scanBtn.disabled = false;
+                writeBtn.disabled = false;
+            } else if (type === 'scanning') {
+                scanBtn.disabled = true;
+                writeBtn.disabled = true;
+            } else {
+                scanBtn.disabled = true;
+                writeBtn.disabled = true;
+            }
+        }
+
+        // Start NFC scan
+        async function startScan() {
+            if (!nfcSupported) return;
+            
+            try {
+                updateStatus('scanning', '🔍 Menunggu NFC tag... Dekatkan tag ke perangkat');
+                
+                const ndef = new NDEFReader();
+                await ndef.scan();
+                
+                ndef.addEventListener("reading", ({ message, serialNumber }) => {
+                    displayNFCData(message, serialNumber);
+                    updateStatus('ready', '✅ Data berhasil dibaca! Scan lagi untuk tag lain.');
+                });
+                
+                ndef.addEventListener("readingerror", () => {
+                    updateStatus('error', '❌ Error membaca NFC tag');
+                });
+                
+            } catch (error) {
+                if (error.name === "AbortError") {
+                    updateStatus('ready', '⏹️ Scan dibatalkan');
+                } else if (error.name === "NotAllowedError") {
+                    updateStatus('error', '❌ Akses NFC ditolak');
+                } else {
+                    updateStatus('error', `❌ Error: ${error.message}`);
+                }
+            }
+        }
+
+        // Display NFC data
+        function displayNFCData(message, serialNumber) {
+            let dataHTML = `<strong>🏷️ Serial Number:</strong> ${serialNumber}<br><br>`;
+            dataHTML += `<strong>📝 Records (${message.records.length}):</strong><br><br>`;
+            
+            message.records.forEach((record, index) => {
+                dataHTML += `<strong>Record ${index + 1}:</strong><br>`;
+                dataHTML += `• Type: ${record.recordType}<br>`;
+                dataHTML += `• Media Type: ${record.mediaType || 'N/A'}<br>`;
+                dataHTML += `• ID: ${record.id || 'N/A'}<br>`;
+                
+                // Decode data based on type
+                if (record.recordType === "text") {
+                    const textDecoder = new TextDecoder(record.encoding);
+                    dataHTML += `• Data: "${textDecoder.decode(record.data)}"<br>`;
+                } else if (record.recordType === "url") {
+                    const textDecoder = new TextDecoder();
+                    dataHTML += `• URL: ${textDecoder.decode(record.data)}<br>`;
+                } else if (record.recordType === "wifi") {
+                    dataHTML += `• WiFi Config: ${new TextDecoder().decode(record.data)}<br>`;
+                } else {
+                    dataHTML += `• Raw Data: ${Array.from(new Uint8Array(record.data)).map(b => b.toString(16).padStart(2, '0')).join(' ')}<br>`;
+                }
+                dataHTML += `<br>`;
+            });
+            
+            document.getElementById('nfcData').innerHTML = dataHTML;
+        }
+
+        // Write to NFC
+        async function writeNFC() {
+            if (!nfcSupported) return;
+            
+            const recordType = document.querySelector('input[name="recordType"]:checked').value;
+            let message;
+            
+            try {
+                if (recordType === 'text') {
+                    const text = document.getElementById('textData').value.trim();
+                    if (!text) {
+                        alert('Masukkan text yang akan ditulis');
+                        return;
+                    }
+                    message = { records: [{ recordType: "text", data: text }] };
+                    
+                } else if (recordType === 'url') {
+                    const url = document.getElementById('urlData').value.trim();
+                    if (!url) {
+                        alert('Masukkan URL yang akan ditulis');
+                        return;
+                    }
+                    message = { records: [{ recordType: "url", data: url }] };
+                    
+                } else if (recordType === 'wifi') {
+                    const ssid = document.getElementById('wifiSSID').value.trim();
+                    const password = document.getElementById('wifiPassword').value;
+                    const security = document.getElementById('wifiSecurity').value;
+                    
+                    if (!ssid) {
+                        alert('Masukkan nama WiFi (SSID)');
+                        return;
+                    }
+                    
+                    // Create WiFi config string
+                    let wifiConfig = `WIFI:T:${security};S:${ssid};P:${password};;`;
+                    message = { records: [{ recordType: "text", data: wifiConfig }] };
+                }
+                
+                updateStatus('scanning', '✍️ Dekatkan NFC tag untuk menulis data...');
+                
+                const ndef = new NDEFReader();
+                await ndef.write(message);
+                
+                updateStatus('ready', '✅ Data berhasil ditulis ke NFC tag!');
+                
+            } catch (error) {
+                if (error.name === "NotAllowedError") {
+                    updateStatus('error', '❌ Akses NFC ditolak untuk menulis');
+                } else if (error.name === "AbortError") {
+                    updateStatus('ready', '⏹️ Penulisan dibatalkan');
+                } else {
+                    updateStatus('error', `❌ Error menulis: ${error.message}`);
+                }
+            }
+        }
+
+        // Handle record type change
+        document.querySelectorAll('input[name="recordType"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                // Hide all inputs
+                document.getElementById('textInput').style.display = 'none';
+                document.getElementById('urlInput').style.display = 'none';
+                document.getElementById('wifiInput').style.display = 'none';
+                
+                // Show selected input
+                document.getElementById(this.value + 'Input').style.display = 'block';
+            });
+        });
+
+        // Initialize
+        checkNFCSupport();
+    </script>
 </body>
 </html>
