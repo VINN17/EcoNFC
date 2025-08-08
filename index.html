@@ -1,1056 +1,598 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IoT Device Configuration</title>
+    <title>NFC Reader & Writer</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            color: #333;
-        }
-        
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            min-height: 100vh;
             display: flex;
-            flex-direction: column;
+            align-items: center;
             justify-content: center;
+            padding: 20px;
         }
-        
-        .card {
+
+        .container {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
             border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-            transform: translateY(0);
-            transition: all 0.3s ease;
-        }
-        
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-        }
-        
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        
-        .header h1 {
-            color: #4a5568;
-            margin-bottom: 10px;
-            font-size: 28px;
-        }
-        
-        .header p {
-            color: #666;
-            font-size: 16px;
-        }
-        
-        .nfc-section {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        
-        .nfc-button {
-            background: linear-gradient(45deg, #2ecc71, #27ae60);
-            color: white;
-            border: none;
-            border-radius: 50px;
-            padding: 15px 30px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 20px rgba(46, 204, 113, 0.3);
-            margin: 10px;
-        }
-        
-        .nfc-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 25px rgba(46, 204, 113, 0.4);
-        }
-        
-        .nfc-button:disabled {
-            background: #bdc3c7;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-        
-        .divider {
-            display: flex;
-            align-items: center;
-            margin: 30px 0;
-            color: #666;
-        }
-        
-        .divider::before,
-        .divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, #ddd, transparent);
-        }
-        
-        .divider span {
-            padding: 0 20px;
-            font-weight: 500;
-        }
-        
-        .manual-input {
-            margin-bottom: 20px;
-        }
-        
-        .input-group {
-            margin-bottom: 20px;
-        }
-        
-        .input-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: #4a5568;
-        }
-        
-        .input-group input {
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            background: #f8f9fa;
+            max-width: 600px;
+            text-align: center;
         }
-        
-        .input-group input:focus {
-            outline: none;
-            border-color: #667eea;
-            background: white;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            font-weight: 700;
         }
-        
-        .connect-button {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            border-radius: 50px;
-            padding: 15px 30px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            width: 100%;
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+
+        .nfc-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            color: #667eea;
+            animation: pulse 2s infinite;
         }
-        
-        .connect-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 25px rgba(102, 126, 234, 0.4);
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
         }
-        
+
         .status {
             padding: 15px;
             border-radius: 10px;
             margin-bottom: 20px;
-            text-align: center;
             font-weight: 500;
+            font-size: 1.1em;
         }
-        
-        .status.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+
+        .status.ready {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
         }
-        
+
+        .status.scanning {
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+            color: white;
+            animation: blink 1s infinite;
+        }
+
         .status.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+            color: white;
         }
-        
-        .status.info {
-            background: #cce7ff;
-            color: #004085;
-            border: 1px solid #b3d7ff;
+
+        .status.not-supported {
+            background: linear-gradient(45deg, #FF9800, #F57C00);
+            color: white;
         }
-        
-        .config-form {
-            display: none;
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.5; }
         }
-        
-        .form-section {
-            margin-bottom: 25px;
-        }
-        
-        .form-section h3 {
-            color: #4a5568;
-            margin-bottom: 15px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #e2e8f0;
-        }
-        
-        .form-row {
+
+        .controls {
             display: flex;
             gap: 15px;
-            margin-bottom: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
-        
-        .form-row .input-group {
-            flex: 1;
-            margin-bottom: 0;
-        }
-        
-        .device-info {
-            background: linear-gradient(45deg, #f8f9fa, #e9ecef);
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 25px;
-        }
-        
-        .device-info h3 {
-            color: #495057;
-            margin-bottom: 10px;
-        }
-        
-        .device-info .device-id {
-            font-family: 'Courier New', monospace;
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            font-weight: bold;
-            color: #2c3e50;
-        }
-        
-        .save-button {
-            background: linear-gradient(45deg, #28a745, #20c997);
+
+        button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
             color: white;
             border: none;
-            border-radius: 50px;
             padding: 15px 30px;
-            font-size: 16px;
-            font-weight: bold;
+            border-radius: 50px;
+            font-size: 1.1em;
+            font-weight: 600;
             cursor: pointer;
-            width: 100%;
             transition: all 0.3s ease;
-            box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
         }
-        
-        .save-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 25px rgba(40, 167, 69, 0.4);
+
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
         }
-        
+
+        button:active {
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .data-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 20px;
+        }
+
+        .data-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .data-display {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            min-height: 100px;
+            border: 2px dashed #ddd;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95em;
+            line-height: 1.6;
+            text-align: left;
+            overflow-wrap: break-word;
+        }
+
+        .write-section {
+            margin-top: 20px;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1em;
+            margin-bottom: 15px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .record-type {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .record-type label {
+            background: #f0f0f0;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .record-type input[type="radio"] {
+            display: none;
+        }
+
+        .record-type input[type="radio"]:checked + span {
+            background: #667eea;
+            color: white;
+        }
+
+        .footer {
+            margin-top: 30px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
         @media (max-width: 768px) {
             .container {
-                padding: 15px;
+                padding: 30px 20px;
             }
             
-            .card {
-                padding: 20px;
+            h1 {
+                font-size: 2em;
             }
             
-            .form-row {
+            .controls {
                 flex-direction: column;
-                gap: 0;
             }
-        }
-        
-        .nfc-icon {
-            width: 60px;
-            height: 60px;
-            margin: 0 auto 15px;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 24px;
-        }
-        
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 10px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            
+            button {
+                width: 100%;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="card">
-            <div class="header">
-                <h1>🔧 IoT Device Config</h1>
-                <p>Configure your ESP32 devices easily</p>
-            </div>
-            
-            <div id="connection-section">
-                <div class="nfc-section">
-                    <div class="nfc-icon">📱</div>
-                    <h3>NFC Detection</h3>
-                    <p style="margin-bottom: 15px; color: #666;">Tap your NFC-enabled device to connect</p>
-                    <div style="margin-bottom: 15px;">
-                        <small style="color: #888;">
-                            📋 Requirements: HTTPS + Chrome Browser (Android)<br>
-                            🔧 Make sure NFC is enabled in your phone settings
-                        </small>
-                    </div>
-                    <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                        <button id="nfc-button" class="nfc-button">🔍 Read NFC Tag</button>
-                        <button id="nfc-write-button" class="nfc-button" style="background: linear-gradient(45deg, #e74c3c, #c0392b);">✏️ Write NFC Tag</button>
-                    </div>
-                    <div id="nfc-status"></div>
-                    
-                    <!-- NFC Write Modal -->
-                    <div id="nfc-write-modal" style="display: none; margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 10px; border: 2px solid #e9ecef;">
-                        <h4 style="margin-bottom: 15px; color: #495057;">Write to NFC Tag</h4>
-                        <div class="input-group" style="margin-bottom: 15px;">
-                            <label for="nfc-device-id">Device ID to Write:</label>
-                            <input type="text" id="nfc-device-id" placeholder="e.g., ESP001" maxlength="20" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
-                        </div>
-                        <div class="input-group" style="margin-bottom: 15px;">
-                            <label for="nfc-write-type">Write Format:</label>
-                            <select id="nfc-write-type" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
-                                <option value="text">Text Record (DEVICE:ESP001)</option>
-                                <option value="url">URL Record (with device parameter)</option>
-                                <option value="json">JSON Record (with deviceId)</option>
-                            </select>
-                        </div>
-                        <div style="display: flex; gap: 10px;">
-                            <button id="nfc-write-confirm" class="nfc-button" style="flex: 1; background: linear-gradient(45deg, #27ae60, #2ecc71);">💾 Write Now</button>
-                            <button id="nfc-write-cancel" class="nfc-button" style="flex: 1; background: linear-gradient(45deg, #95a5a6, #7f8c8d);">❌ Cancel</button>
-                        </div>
-                    </div>
-                    
-                    <!-- Debug info for troubleshooting -->
-                    <div style="margin-top: 15px; font-size: 12px; color: #666;">
-                        <div>Protocol: <span id="protocol-info"></span></div>
-                        <div>Browser: <span id="browser-info"></span></div>
-                        <div>NFC API: <span id="nfc-api-info"></span></div>
-                        <div>NFC Write: <span id="nfc-write-info"></span></div>
-                    </div>
-                </div>
-                
-                <div class="divider">
-                    <span>OR</span>
-                </div>
-                
-                <div class="qr-section" style="text-align: center; margin-bottom: 20px;">
-                    <h3>📷 QR Code Scanner</h3>
-                    <p style="margin-bottom: 15px; color: #666;">Scan QR code on your device</p>
-                    <button id="qr-button" class="nfc-button">📱 Scan QR Code</button>
-                </div>
-                
-                <div class="divider">
-                    <span>OR</span>
-                </div>
-                
-                <div class="manual-input">
-                    <h3 style="text-align: center; margin-bottom: 20px;">Manual Connection</h3>
-                    <div class="input-group">
-                        <label for="device-uid">Device UID:</label>
-                        <input type="text" id="device-uid" placeholder="e.g., ESP001, DEV_ABC123" maxlength="50">
-                    </div>
-                    <button id="connect-manual" class="connect-button">Connect to Device</button>
-                </div>
-            </div>
-            
-            <div id="status-message"></div>
+        <div class="nfc-icon">📡</div>
+        <h1>NFC Reader & Writer</h1>
+        
+        <div id="status" class="status">Mengecek dukungan NFC...</div>
+        
+        <div class="controls">
+            <button id="scanBtn" onclick="startScan()">📖 Scan NFC</button>
+            <button id="writeBtn" onclick="writeNFC()">✏️ Write NFC</button>
         </div>
         
-        <div class="card config-form" id="config-section">
-            <div class="device-info">
-                <h3>Connected Device</h3>
-                <div class="device-id" id="current-device-id">-</div>
+        <div class="data-section">
+            <h3>📋 Data NFC</h3>
+            <div id="nfcData" class="data-display">
+                Tidak ada data. Silakan scan NFC tag untuk membaca data.
+            </div>
+        </div>
+        
+        <div class="data-section write-section">
+            <h3>✍️ Tulis ke NFC</h3>
+            
+            <div class="record-type">
+                <label>
+                    <input type="radio" name="recordType" value="text" checked>
+                    <span>Text</span>
+                </label>
+                <label>
+                    <input type="radio" name="recordType" value="url">
+                    <span>URL</span>
+                </label>
+                <label>
+                    <input type="radio" name="recordType" value="wifi">
+                    <span>WiFi</span>
+                </label>
             </div>
             
-            <form id="device-config-form">
-                <div class="form-section">
-                    <h3>📋 Device Information</h3>
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label for="device-name">Device Name:</label>
-                            <input type="text" id="device-name" placeholder="e.g., Sensor Room 1" required>
-                        </div>
-                        <div class="input-group">
-                            <label for="device-location">Location:</label>
-                            <input type="text" id="device-location" placeholder="e.g., Living Room">
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-section">
-                    <h3>📶 WiFi Configuration</h3>
-                    <div class="input-group">
-                        <label for="wifi-ssid">WiFi SSID:</label>
-                        <input type="text" id="wifi-ssid" placeholder="Your WiFi Network Name" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="wifi-password">WiFi Password:</label>
-                        <input type="password" id="wifi-password" placeholder="Your WiFi Password" required>
-                    </div>
-                </div>
-                
-                <div class="form-section">
-                    <h3>🌐 Server Configuration</h3>
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label for="server-ip">Server IP:</label>
-                            <input type="text" id="server-ip" placeholder="192.168.1.100" required>
-                        </div>
-                        <div class="input-group">
-                            <label for="server-port">Port:</label>
-                            <input type="number" id="server-port" placeholder="8080" min="1" max="65535" required>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-section">
-                    <h3>📡 MQTT Settings</h3>
-                    <div class="input-group">
-                        <label for="mqtt-broker">MQTT Broker:</label>
-                        <input type="text" id="mqtt-broker" placeholder="mqtt.yourserver.com" required>
-                    </div>
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label for="mqtt-port">MQTT Port:</label>
-                            <input type="number" id="mqtt-port" placeholder="1883" min="1" max="65535" value="1883" required>
-                        </div>
-                        <div class="input-group">
-                            <label for="mqtt-topic">Topic Prefix:</label>
-                            <input type="text" id="mqtt-topic" placeholder="sensors/" required>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label for="mqtt-user">Username (optional):</label>
-                            <input type="text" id="mqtt-user" placeholder="MQTT Username">
-                        </div>
-                        <div class="input-group">
-                            <label for="mqtt-pass">Password (optional):</label>
-                            <input type="password" id="mqtt-pass" placeholder="MQTT Password">
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-section">
-                    <h3>⚙️ Sensor Settings</h3>
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label for="sensor-interval">Reading Interval (seconds):</label>
-                            <input type="number" id="sensor-interval" placeholder="30" min="1" max="3600" value="30" required>
-                        </div>
-                        <div class="input-group">
-                            <label for="sensor-type">Sensor Type:</label>
-                            <select id="sensor-type" style="width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 16px; background: #f8f9fa;">
-                                <option value="temperature">Temperature</option>
-                                <option value="humidity">Humidity</option>
-                                <option value="both">Temperature + Humidity</option>
-                                <option value="pressure">Pressure</option>
-                                <option value="light">Light Sensor</option>
-                                <option value="motion">Motion Detector</option>
-                                <option value="custom">Custom</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                
-                <button type="submit" class="save-button">💾 Save Configuration</button>
-                
-                <!-- Write to NFC option after save -->
-                <div style="margin-top: 20px; text-align: center;">
-                    <button type="button" id="save-to-nfc" class="nfc-button" style="background: linear-gradient(45deg, #f39c12, #e67e22);">
-                        📱 Write Config to NFC Tag
-                    </button>
-                    <p style="font-size: 12px; color: #666; margin-top: 8px;">
-                        Save device configuration to a new NFC tag
-                    </p>
-                </div>
-            </form>
+            <div id="textInput">
+                <input type="text" id="textData" placeholder="Masukkan text yang akan ditulis...">
+            </div>
+            
+            <div id="urlInput" style="display: none;">
+                <input type="text" id="urlData" placeholder="https://example.com">
+            </div>
+            
+            <div id="wifiInput" style="display: none;">
+                <input type="text" id="wifiSSID" placeholder="Nama WiFi (SSID)">
+                <input type="password" id="wifiPassword" placeholder="Password WiFi">
+                <select id="wifiSecurity" style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 10px; margin-bottom: 15px;">
+                    <option value="WPA">WPA/WPA2</option>
+                    <option value="WEP">WEP</option>
+                    <option value="">Open (Tanpa Password)</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>📱 <strong>Browser yang Mendukung:</strong></p>
+            <p>• Chrome Android (v89+) - <strong>Recommended</strong></p>
+            <p>• Samsung Internet (v14+)</p>
+            <p>• Edge Android (v91+)</p>
+            <br>
+            <p>⚠️ Web NFC API hanya bekerja di Android dengan browser yang mendukung</p>
+            <p>🔒 Pastikan menggunakan HTTPS dan NFC aktif di perangkat</p>
         </div>
     </div>
 
     <script>
-        let currentDeviceId = null;
         let nfcSupported = false;
+        let isScanning = false;
 
-        // Enhanced NFC support check
-        function checkNFCSupport() {
-            // Check if running on HTTPS (required for NFC)
-            if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-                document.getElementById('nfc-button').disabled = true;
-                document.getElementById('nfc-write-button').disabled = true;
-                document.getElementById('nfc-button').textContent = '🔒 HTTPS Required';
-                document.getElementById('nfc-write-button').textContent = '🔒 HTTPS Required';
-                showStatus('NFC requires HTTPS connection. Please access via https://', 'error');
-                return false;
+        // Check NFC support
+        async function checkNFCSupport() {
+            // Detect browser and platform
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+            const isChrome = /Chrome/i.test(navigator.userAgent);
+            const isSamsung = /SamsungBrowser/i.test(navigator.userAgent);
+            const isEdge = /EdgA/i.test(navigator.userAgent);
+            const isFirefox = /Firefox/i.test(navigator.userAgent);
+            const isSafari = /Safari/i.test(navigator.userAgent) && !isChrome;
+            
+            if ('NDEFReader' in window) {
+                try {
+                    const ndef = new NDEFReader();
+                    // Don't auto-start scan, just check if API exists
+                    nfcSupported = true;
+                    updateStatus('ready', '✅ NFC siap digunakan! Tap tombol untuk mulai scan.');
+                } catch (error) {
+                    if (error.name === 'NotAllowedError') {
+                        updateStatus('error', '❌ Akses NFC ditolak. Izinkan akses NFC di browser.');
+                    } else {
+                        updateStatus('error', `❌ Error: ${error.message}`);
+                    }
+                }
+            } else {
+                // Provide specific guidance based on browser/platform
+                let message = '❌ Browser tidak mendukung Web NFC API\n\n';
+                
+                if (isIOS) {
+                    message += '🍎 iPhone/iPad tidak mendukung Web NFC\n';
+                    message += '💡 Gunakan app NFC Tools dari App Store';
+                    updateStatus('not-supported', message);
+                    showBrowserGuidance('ios');
+                } else if (!isAndroid) {
+                    message += '📱 Web NFC hanya tersedia di Android';
+                    updateStatus('not-supported', message);
+                    showBrowserGuidance('not-android');
+                } else if (isFirefox) {
+                    message += '🦊 Firefox belum mendukung Web NFC\n';
+                    message += '💡 Coba Chrome Android atau Samsung Internet';
+                    updateStatus('not-supported', message);
+                    showBrowserGuidance('firefox');
+                } else if (!isChrome && !isSamsung && !isEdge) {
+                    message += '💡 Gunakan Chrome Android, Samsung Internet, atau Edge Android';
+                    updateStatus('not-supported', message);
+                    showBrowserGuidance('unsupported-browser');
+                } else {
+                    message += '🔧 Browser mungkin perlu update atau flag experimental diaktifkan';
+                    updateStatus('not-supported', message);
+                    showBrowserGuidance('needs-update');
+                }
+            }
+        }
+        
+        // Show specific guidance based on the issue
+        function showBrowserGuidance(issue) {
+            const guidanceDiv = document.createElement('div');
+            guidanceDiv.className = 'guidance-section';
+            guidanceDiv.style.cssText = `
+                background: #fff3cd;
+                border: 1px solid #ffeaa7;
+                border-radius: 10px;
+                padding: 20px;
+                margin-top: 20px;
+                text-align: left;
+            `;
+            
+            let content = '<h4 style="color: #856404; margin-bottom: 15px;">🔧 Cara Mengatasi:</h4>';
+            
+            switch(issue) {
+                case 'ios':
+                    content += `
+                        <p><strong>🍎 iPhone/iPad tidak mendukung Web NFC</strong></p>
+                        <p>Apple tidak mengizinkan akses NFC melalui browser web karena alasan keamanan.</p>
+                        
+                        <h5 style="margin-top: 15px; color: #856404;">✨ Alternatif untuk iPhone:</h5>
+                        <ol>
+                            <li><strong>NFC Tools</strong> (App Store - Gratis)
+                                <ul><li>Bisa baca & tulis NFC tags</li><li>Interface user-friendly</li></ul>
+                            </li>
+                            <li><strong>Shortcuts App</strong> (Built-in iOS)
+                                <ul><li>Bisa trigger action dari NFC</li><li>Hanya untuk membaca</li></ul>
+                            </li>
+                            <li><strong>TagInfo</strong> (App Store)
+                                <ul><li>Analisis detail NFC tags</li><li>Read-only</li></ul>
+                            </li>
+                        </ol>
+                        
+                        <p style="margin-top: 15px;"><strong>💡 Rekomendasi:</strong> Download "NFC Tools" untuk pengalaman yang mirip dengan web app ini.</p>
+                    `;
+                    break;
+                case 'not-android':
+                    content += `
+                        <p><strong>Web NFC hanya bekerja di Android!</strong></p>
+                        <ul>
+                            <li>Buka halaman ini di perangkat Android</li>
+                            <li>Gunakan Chrome Android, Samsung Internet, atau Edge Android</li>
+                            <li>Pastikan NFC aktif di pengaturan perangkat</li>
+                        </ul>
+                    `;
+                    break;
+                case 'firefox':
+                    content += `
+                        <p><strong>Firefox belum mendukung Web NFC</strong></p>
+                        <ol>
+                            <li>Download Chrome Android dari Play Store</li>
+                            <li>Atau gunakan Samsung Internet (jika tersedia)</li>
+                            <li>Buka halaman ini di browser yang sudah didownload</li>
+                        </ol>
+                    `;
+                    break;
+                case 'unsupported-browser':
+                    content += `
+                        <p><strong>Browser tidak mendukung Web NFC</strong></p>
+                        <ol>
+                            <li>Install <strong>Chrome Android</strong> (recommended)</li>
+                            <li>Atau gunakan <strong>Samsung Internet</strong></li>
+                            <li>Atau coba <strong>Edge Android</strong></li>
+                            <li>Buka halaman ini di browser baru</li>
+                        </ol>
+                    `;
+                    break;
+                case 'needs-update':
+                    content += `
+                        <p><strong>Browser mungkin perlu update</strong></p>
+                        <ol>
+                            <li>Update Chrome Android ke versi terbaru</li>
+                            <li>Jika masih tidak bisa, coba aktifkan experimental features:
+                                <ul>
+                                    <li>Buka <code>chrome://flags</code></li>
+                                    <li>Cari "Experimental Web Platform features"</li>
+                                    <li>Set ke "Enabled"</li>
+                                    <li>Restart browser</li>
+                                </ul>
+                            </li>
+                            <li>Pastikan menggunakan HTTPS atau localhost</li>
+                        </ol>
+                    `;
+                    break;
             }
             
-            // Check NDEFReader support
-            if ('NDEFReader' in window) {
-                nfcSupported = true;
-                return true;
+            guidanceDiv.innerHTML = content;
+            
+            // Insert after the footer
+            const footer = document.querySelector('.footer');
+            footer.parentNode.insertBefore(guidanceDiv, footer.nextSibling);
+        }
+
+        function updateStatus(type, message) {
+            const statusEl = document.getElementById('status');
+            statusEl.className = `status ${type}`;
+            statusEl.textContent = message;
+            
+            // Enable/disable buttons
+            const scanBtn = document.getElementById('scanBtn');
+            const writeBtn = document.getElementById('writeBtn');
+            
+            if (type === 'ready') {
+                scanBtn.disabled = false;
+                writeBtn.disabled = false;
+            } else if (type === 'scanning') {
+                scanBtn.disabled = true;
+                writeBtn.disabled = true;
             } else {
-                // Detect browser and give specific message
-                const isChrome = /Chrome/.test(navigator.userAgent);
-                const isAndroid = /Android/.test(navigator.userAgent);
-                
-                if (isAndroid && !isChrome) {
-                    document.getElementById('nfc-button').disabled = true;
-                    document.getElementById('nfc-write-button').disabled = true;
-                    document.getElementById('nfc-button').textContent = '📱 Use Chrome';
-                    document.getElementById('nfc-write-button').textContent = '📱 Use Chrome';
-                    showStatus('NFC Web API only works in Chrome browser on Android', 'info');
-                } else {
-                    document.getElementById('nfc-button').disabled = true;
-                    document.getElementById('nfc-write-button').disabled = true;
-                    document.getElementById('nfc-button').textContent = '❌ Not Supported';
-                    document.getElementById('nfc-write-button').textContent = '❌ Not Supported';
-                    showStatus('NFC Web API not supported on this device/browser', 'info');
-                }
-                return false;
+                scanBtn.disabled = true;
+                writeBtn.disabled = true;
             }
         }
-        
-        checkNFCSupport();
-        
-        // Display debug info
-        document.getElementById('protocol-info').textContent = location.protocol;
-        document.getElementById('browser-info').textContent = navigator.userAgent.split(' ').pop();
-        document.getElementById('nfc-api-info').textContent = 'NDEFReader' in window ? '✅ Available' : '❌ Not Available';
-        document.getElementById('nfc-write-info').textContent = nfcSupported ? '✅ Supported' : '❌ Not Supported';
 
-        // Show status message
-        function showStatus(message, type = 'info') {
-            const statusDiv = document.getElementById('status-message');
-            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
-            setTimeout(() => {
-                statusDiv.innerHTML = '';
-            }, 5000);
-        }
-
-        // Enhanced NFC Scan functionality
-        document.getElementById('nfc-button').addEventListener('click', async () => {
-            if (!nfcSupported) {
-                showStatus('NFC is not supported. Please use manual input or try Chrome browser.', 'error');
-                return;
-            }
-
-            const button = document.getElementById('nfc-button');
-            const originalText = button.textContent;
+        // Start NFC scan
+        async function startScan() {
+            if (!nfcSupported) return;
             
             try {
-                button.innerHTML = '<span class="loading"></span>Requesting Permission...';
-                button.disabled = true;
-                
-                // Request permissions first
-                const permissionStatus = await navigator.permissions.query({ name: 'nfc' });
-                
-                if (permissionStatus.state === 'denied') {
-                    showStatus('NFC permission denied. Please enable NFC in your device settings.', 'error');
-                    return;
-                }
+                updateStatus('scanning', '🔍 Menunggu NFC tag... Dekatkan tag ke perangkat');
                 
                 const ndef = new NDEFReader();
-                
-                // Start scanning
-                button.innerHTML = '<span class="loading"></span>Scanning...';
                 await ndef.scan();
                 
-                showStatus('✅ NFC scan active! Please tap your NFC tag...', 'success');
-                
-                // Set timeout for scan
-                const scanTimeout = setTimeout(() => {
-                    showStatus('NFC scan timeout. Please try again.', 'error');
-                    button.textContent = originalText;
-                    button.disabled = false;
-                }, 30000); // 30 seconds timeout
-                
-                ndef.addEventListener('reading', ({ message, serialNumber }) => {
-                    clearTimeout(scanTimeout);
-                    
-                    let deviceId = null;
-                    
-                    console.log('NFC Reading detected:', { message, serialNumber });
-                    
-                    // Try to read device ID from NFC data
-                    for (const record of message.records) {
-                        console.log('Record:', record);
-                        
-                        if (record.recordType === 'text') {
-                            const textDecoder = new TextDecoder(record.encoding || 'utf-8');
-                            const data = textDecoder.decode(record.data);
-                            console.log('Text data:', data);
-                            
-                            // Look for device ID patterns
-                            if (data.startsWith('DEVICE:')) {
-                                deviceId = data.substring(7);
-                            } else if (data.startsWith('ESP')) {
-                                deviceId = data;
-                            } else if (data.match(/^[A-Z0-9_-]+$/)) {
-                                deviceId = data;
-                            }
-                        } else if (record.recordType === 'url') {
-                            const url = new TextDecoder().decode(record.data);
-                            console.log('URL data:', url);
-                            
-                            const urlParams = new URLSearchParams(url.split('?')[1] || '');
-                            if (urlParams.has('device')) {
-                                deviceId = urlParams.get('device');
-                            }
-                        } else if (record.recordType === 'application/json') {
-                            try {
-                                const jsonData = JSON.parse(new TextDecoder().decode(record.data));
-                                if (jsonData.deviceId) {
-                                    deviceId = jsonData.deviceId;
-                                }
-                            } catch (e) {
-                                console.log('JSON parse error:', e);
-                            }
-                        }
-                    }
-                    
-                    // Fallback to serial number
-                    if (!deviceId && serialNumber) {
-                        deviceId = 'NFC_' + serialNumber.replace(/:/g, '');
-                    }
-                    
-                    if (deviceId) {
-                        showStatus(`✅ NFC device detected: ${deviceId}`, 'success');
-                        connectToDevice(deviceId, 'NFC');
-                    } else {
-                        showStatus('⚠️ No device ID found in NFC tag. Try manual input.', 'error');
-                        // Auto-focus on manual input
-                        document.getElementById('device-uid').focus();
-                    }
-                    
-                    button.textContent = originalText;
-                    button.disabled = false;
+                ndef.addEventListener("reading", ({ message, serialNumber }) => {
+                    displayNFCData(message, serialNumber);
+                    updateStatus('ready', '✅ Data berhasil dibaca! Scan lagi untuk tag lain.');
                 });
                 
-                ndef.addEventListener('readingerror', (error) => {
-                    clearTimeout(scanTimeout);
-                    console.error('NFC Read Error:', error);
-                    showStatus('❌ Error reading NFC tag. Please try again.', 'error');
-                    button.textContent = originalText;
-                    button.disabled = false;
+                ndef.addEventListener("readingerror", () => {
+                    updateStatus('error', '❌ Error membaca NFC tag');
                 });
                 
             } catch (error) {
-                console.error('NFC Error:', error);
-                
-                let errorMessage = 'NFC scan failed: ';
-                
-                if (error.name === 'NotAllowedError') {
-                    errorMessage += 'Permission denied. Please enable NFC in settings.';
-                } else if (error.name === 'NotSupportedError') {
-                    errorMessage += 'NFC not supported on this device.';
-                } else if (error.name === 'NotReadableError') {
-                    errorMessage += 'NFC hardware busy or unavailable.';
+                if (error.name === "AbortError") {
+                    updateStatus('ready', '⏹️ Scan dibatalkan');
+                } else if (error.name === "NotAllowedError") {
+                    updateStatus('error', '❌ Akses NFC ditolak');
                 } else {
-                    errorMessage += error.message || 'Unknown error';
+                    updateStatus('error', `❌ Error: ${error.message}`);
                 }
-                
-                showStatus(errorMessage, 'error');
-                button.textContent = originalText;
-                button.disabled = false;
-            }
-        });
-
-        // NFC Write functionality
-        document.getElementById('nfc-write-button').addEventListener('click', () => {
-            if (!nfcSupported) {
-                showStatus('NFC is not supported. Please use Chrome browser on Android with HTTPS.', 'error');
-                return;
-            }
-            
-            document.getElementById('nfc-write-modal').style.display = 'block';
-            document.getElementById('nfc-device-id').focus();
-        });
-
-        // NFC Write Cancel
-        document.getElementById('nfc-write-cancel').addEventListener('click', () => {
-            document.getElementById('nfc-write-modal').style.display = 'none';
-            document.getElementById('nfc-device-id').value = '';
-        });
-
-        // NFC Write Confirm
-        document.getElementById('nfc-write-confirm').addEventListener('click', async () => {
-            const deviceId = document.getElementById('nfc-device-id').value.trim();
-            const writeType = document.getElementById('nfc-write-type').value;
-            
-            if (!deviceId) {
-                showStatus('Please enter a Device ID to write', 'error');
-                return;
-            }
-            
-            if (deviceId.length < 2) {
-                showStatus('Device ID must be at least 2 characters long', 'error');
-                return;
-            }
-            
-            const writeButton = document.getElementById('nfc-write-confirm');
-            const originalText = writeButton.textContent;
-            
-            try {
-                writeButton.innerHTML = '<span class="loading"></span>Writing...';
-                writeButton.disabled = true;
-                
-                const ndef = new NDEFReader();
-                
-                // Prepare NDEF message based on selected type
-                let ndefMessage;
-                
-                switch(writeType) {
-                    case 'text':
-                        ndefMessage = {
-                            records: [{
-                                recordType: "text",
-                                data: `DEVICE:${deviceId}`
-                            }]
-                        };
-                        break;
-                        
-                    case 'url':
-                        const currentUrl = window.location.origin + window.location.pathname;
-                        ndefMessage = {
-                            records: [{
-                                recordType: "url",
-                                data: `${currentUrl}?device=${deviceId}`
-                            }]
-                        };
-                        break;
-                        
-                    case 'json':
-                        ndefMessage = {
-                            records: [{
-                                recordType: "mime",
-                                mediaType: "application/json",
-                                data: JSON.stringify({
-                                    deviceId: deviceId,
-                                    configUrl: window.location.origin + window.location.pathname,
-                                    timestamp: new Date().toISOString()
-                                })
-                            }]
-                        };
-                        break;
-                        
-                    default:
-                        throw new Error('Invalid write type selected');
-                }
-                
-                console.log('Writing NDEF message:', ndefMessage);
-                showStatus('🔄 Ready to write. Please tap your NFC tag...', 'info');
-                
-                // Write to NFC tag
-                await ndef.write(ndefMessage);
-                
-                showStatus(`✅ Successfully written "${deviceId}" to NFC tag!`, 'success');
-                
-                // Hide modal and reset
-                document.getElementById('nfc-write-modal').style.display = 'none';
-                document.getElementById('nfc-device-id').value = '';
-                
-                // Optional: Auto-connect to the device we just wrote
-                setTimeout(() => {
-                    if (confirm(`NFC tag written successfully! Do you want to configure device ${deviceId} now?`)) {
-                        connectToDevice(deviceId, 'NFC Write');
-                    }
-                }, 1000);
-                
-            } catch (error) {
-                console.error('NFC Write Error:', error);
-                
-                let errorMessage = 'Failed to write NFC tag: ';
-                
-                if (error.name === 'NotAllowedError') {
-                    errorMessage += 'Permission denied. Please allow NFC access.';
-                } else if (error.name === 'NotSupportedError') {
-                    errorMessage += 'NFC write not supported on this device.';
-                } else if (error.name === 'NotReadableError') {
-                    errorMessage += 'NFC hardware busy. Please try again.';
-                } else if (error.name === 'NetworkError') {
-                    errorMessage += 'NFC tag write failed. Tag might be read-only or incompatible.';
-                } else {
-                    errorMessage += error.message || 'Unknown error occurred.';
-                }
-                
-                showStatus(errorMessage, 'error');
-                
-            } finally {
-                writeButton.textContent = originalText;
-                writeButton.disabled = false;
-            }
-        });
-
-        // Manual connect functionality
-        document.getElementById('connect-manual').addEventListener('click', () => {
-            const deviceId = document.getElementById('device-uid').value.trim();
-            
-            if (!deviceId) {
-                showStatus('Please enter a device UID', 'error');
-                return;
-            }
-            
-            if (deviceId.length < 3) {
-                showStatus('Device UID must be at least 3 characters long', 'error');
-                return;
-            }
-            
-            connectToDevice(deviceId, 'Manual');
-        });
-
-        // Connect to device function
-        async function connectToDevice(deviceId, method) {
-            currentDeviceId = deviceId;
-            
-            showStatus(`Connecting to device ${deviceId} via ${method}...`, 'info');
-            
-            // Simulate device connection (replace with actual API call)
-            try {
-                // Here you would make an actual API call to your server
-                // const response = await fetch(`/api/device/${deviceId}/connect`, { method: 'POST' });
-                // if (!response.ok) throw new Error('Connection failed');
-                
-                // Simulate network delay
-                await new Promise(resolve => setTimeout(resolve, 1500));
-                
-                // Update UI
-                document.getElementById('current-device-id').textContent = deviceId;
-                document.getElementById('connection-section').style.display = 'none';
-                document.getElementById('config-section').style.display = 'block';
-                
-                // Load existing config if available
-                loadDeviceConfig(deviceId);
-                
-                showStatus(`Successfully connected to device ${deviceId}!`, 'success');
-                
-            } catch (error) {
-                showStatus(`Failed to connect to device ${deviceId}: ${error.message}`, 'error');
             }
         }
 
-        // Load device configuration
-        async function loadDeviceConfig(deviceId) {
-            try {
-                // Here you would fetch existing config from your server
-                // const response = await fetch(`/api/device/${deviceId}/config`);
-                // const config = await response.json();
-                
-                // For demo, we'll use some sample data
-                const sampleConfig = {
-                    deviceName: `Sensor ${deviceId}`,
-                    location: '',
-                    wifiSsid: '',
-                    serverIp: '192.168.1.100',
-                    serverPort: '8080',
-                    mqttBroker: 'mqtt.yourserver.com',
-                    mqttPort: '1883',
-                    mqttTopic: `sensors/${deviceId}/`,
-                    sensorInterval: '30',
-                    sensorType: 'both'
-                };
-                
-                // Populate form with existing data
-                Object.keys(sampleConfig).forEach(key => {
-                    const element = document.getElementById(key.replace(/([A-Z])/g, '-$1').toLowerCase());
-                    if (element) {
-                        element.value = sampleConfig[key];
-                    }
-                });
-                
-            } catch (error) {
-                console.error('Error loading config:', error);
-            }
-        }
-
-        // Save configuration
-        document.getElementById('device-config-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // Display NFC data
+        function displayNFCData(message, serialNumber) {
+            let dataHTML = `<strong>🏷️ Serial Number:</strong> ${serialNumber}<br><br>`;
+            dataHTML += `<strong>📝 Records (${message.records.length}):</strong><br><br>`;
             
-            const formData = new FormData(e.target);
-            const config = {};
-            
-            // Collect all form data
-            const inputs = e.target.querySelectorAll('input, select');
-            inputs.forEach(input => {
-                config[input.id] = input.value;
+            message.records.forEach((record, index) => {
+                dataHTML += `<strong>Record ${index + 1}:</strong><br>`;
+                dataHTML += `• Type: ${record.recordType}<br>`;
+                dataHTML += `• Media Type: ${record.mediaType || 'N/A'}<br>`;
+                dataHTML += `• ID: ${record.id || 'N/A'}<br>`;
+                
+                // Decode data based on type
+                if (record.recordType === "text") {
+                    const textDecoder = new TextDecoder(record.encoding);
+                    dataHTML += `• Data: "${textDecoder.decode(record.data)}"<br>`;
+                } else if (record.recordType === "url") {
+                    const textDecoder = new TextDecoder();
+                    dataHTML += `• URL: ${textDecoder.decode(record.data)}<br>`;
+                } else if (record.recordType === "wifi") {
+                    dataHTML += `• WiFi Config: ${new TextDecoder().decode(record.data)}<br>`;
+                } else {
+                    dataHTML += `• Raw Data: ${Array.from(new Uint8Array(record.data)).map(b => b.toString(16).padStart(2, '0')).join(' ')}<br>`;
+                }
+                dataHTML += `<br>`;
             });
             
-            const saveButton = document.querySelector('.save-button');
-            const originalText = saveButton.textContent;
-            
-            try {
-                saveButton.innerHTML = '<span class="loading"></span>Saving...';
-                saveButton.disabled = true;
-                
-                // Here you would send the config to your server and then to the device
-                // const response = await fetch(`/api/device/${currentDeviceId}/config`, {
-                //     method: 'POST',
-                //     headers: { 'Content-Type': 'application/json' },
-                //     body: JSON.stringify(config)
-                // });
-                
-                // Simulate network delay
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                
-                showStatus(`Configuration saved successfully for device ${currentDeviceId}!`, 'success');
-                
-                // Optionally redirect back to connection screen
-                setTimeout(() => {
-                    if (confirm('Configuration saved! Do you want to configure another device?')) {
-                        location.reload();
-                    }
-                }, 2000);
-                
-            } catch (error) {
-                showStatus(`Failed to save configuration: ${error.message}`, 'error');
-            } finally {
-                saveButton.textContent = originalText;
-                saveButton.disabled = false;
-            }
-        });
-
-        // Enter key support for manual input
-        document.getElementById('device-uid').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                document.getElementById('connect-manual').click();
-            }
-        });
-
-        // Auto-focus on device UID input for desktop users
-        if (window.innerWidth > 768 && !nfcSupported) {
-            document.getElementById('device-uid').focus();
+            document.getElementById('nfcData').innerHTML = dataHTML;
         }
 
-        // Save current config to NFC tag
-        document.getElementById('save-to-nfc').addEventListener('click', async () => {
-            if (!nfcSupported) {
-                showStatus('NFC is not supported. Please use Chrome browser on Android with HTTPS.', 'error');
-                return;
-            }
+        // Write to NFC
+        async function writeNFC() {
+            if (!nfcSupported) return;
             
-            if (!currentDeviceId) {
-                showStatus('No device connected. Please connect to a device first.', 'error');
-                return;
-            }
-            
-            const button = document.getElementById('save-to-nfc');
-            const originalText = button.textContent;
+            const recordType = document.querySelector('input[name="recordType"]:checked').value;
+            let message;
             
             try {
-                button.innerHTML = '<span class="loading"></span>Writing Config...';
-                button.disabled = true;
-                
-                const ndef = new NDEFReader();
-                
-                // Collect current form data
-                const config = {};
-                const inputs = document.querySelectorAll('#device-config-form input, #device-config-form select');
-                inputs.forEach(input => {
-                    config[input.id] = input.value;
-                });
-                
-                // Create comprehensive NFC record with device config
-                const nfcData = {
-                    deviceId: currentDeviceId,
-                    deviceName: config['device-name'] || `Device ${currentDeviceId}`,
-                    configUrl: window.location.origin + window.location.pathname,
-                    config: {
-                        wifi: {
-                            ssid: config['wifi-ssid'],
-                            // Don't save password for security
-                        },
-                        server: {
-                            ip: config['server-ip'],
-                            port: config['server-port']
-                        },
-                        mqtt: {
-                            broker: config['mqtt-broker'],
-                            port: config['mqtt-port'],
-                            topic: config['mqtt-topic'],
-                            user: config['mqtt-user']
-                            // Don't save password for security
-                        },
-                        sensor: {
-                            interval: config['sensor-interval'],
-                            type: config['sensor-type']
-                        }
-                    },
-                    timestamp: new Date().toISOString()
-                };
-                
-                const ndefMessage = {
-                    records: [
-                        // Primary device ID as text
-                        {
-                            recordType: "text",
-                            data: `DEVICE:${currentDeviceId}`
-                        },
-                        // Configuration URL
-                        {
-                            recordType: "url",
-                            data: `${window.location.origin}${window.location.pathname}?device=${currentDeviceId}`
-                        },
-                        // Full config as JSON (for advanced usage)
-                        {
-                            recordType: "mime",
-                            mediaType: "application/json",
-                            data: JSON.stringify(nfcData)
-                        }
-                    ]
-                };
-                
-                console.log('Writing device config to NFC:', nfcData);
-                showStatus('🔄 Ready to write device config. Please tap your NFC tag...', 'info');
-                
-                await ndef.write(ndefMessage);
-                
-                showStatus(`✅ Device "${currentDeviceId}" configuration written to NFC tag!`, 'success');
-                
-            } catch (error) {
-                console.error('NFC Config Write Error:', error);
-                
-                let errorMessage = 'Failed to write config to NFC: ';
-                
-                if (error.name === 'NotAllowedError') {
-                    errorMessage += 'Permission denied. Please allow NFC access.';
-                } else if (error.name === 'NetworkError') {
-                    errorMessage += 'Tag might be read-only or too small for config data.';
-                } else {
-                    errorMessage += error.message || 'Unknown error occurred.';
+                if (recordType === 'text') {
+                    const text = document.getElementById('textData').value.trim();
+                    if (!text) {
+                        alert('Masukkan text yang akan ditulis');
+                        return;
+                    }
+                    message = { records: [{ recordType: "text", data: text }] };
+                    
+                } else if (recordType === 'url') {
+                    const url = document.getElementById('urlData').value.trim();
+                    if (!url) {
+                        alert('Masukkan URL yang akan ditulis');
+                        return;
+                    }
+                    message = { records: [{ recordType: "url", data: url }] };
+                    
+                } else if (recordType === 'wifi') {
+                    const ssid = document.getElementById('wifiSSID').value.trim();
+                    const password = document.getElementById('wifiPassword').value;
+                    const security = document.getElementById('wifiSecurity').value;
+                    
+                    if (!ssid) {
+                        alert('Masukkan nama WiFi (SSID)');
+                        return;
+                    }
+                    
+                    // Create WiFi config string
+                    let wifiConfig = `WIFI:T:${security};S:${ssid};P:${password};;`;
+                    message = { records: [{ recordType: "text", data: wifiConfig }] };
                 }
                 
-                showStatus(errorMessage, 'error');
+                updateStatus('scanning', '✍️ Dekatkan NFC tag untuk menulis data...');
                 
-            } finally {
-                button.textContent = originalText;
-                button.disabled = false;
+                const ndef = new NDEFReader();
+                await ndef.write(message);
+                
+                updateStatus('ready', '✅ Data berhasil ditulis ke NFC tag!');
+                
+            } catch (error) {
+                if (error.name === "NotAllowedError") {
+                    updateStatus('error', '❌ Akses NFC ditolak untuk menulis');
+                } else if (error.name === "AbortError") {
+                    updateStatus('ready', '⏹️ Penulisan dibatalkan');
+                } else {
+                    updateStatus('error', `❌ Error menulis: ${error.message}`);
+                }
             }
+        }
+
+        // Handle record type change
+        document.querySelectorAll('input[name="recordType"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                // Hide all inputs
+                document.getElementById('textInput').style.display = 'none';
+                document.getElementById('urlInput').style.display = 'none';
+                document.getElementById('wifiInput').style.display = 'none';
+                
+                // Show selected input
+                document.getElementById(this.value + 'Input').style.display = 'block';
+            });
         });
+
+        // Initialize
+        checkNFCSupport();
     </script>
 </body>
 </html>
