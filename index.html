@@ -15,10 +15,6 @@
             padding: 10px;
             font-size: 16px;
         }
-        textarea {
-            width: 80%;
-            margin-top: 10px;
-        }
         .hidden {
             display: none;
         }
@@ -36,14 +32,29 @@
 <!-- Halaman Konfigurasi -->
 <div id="config" class="hidden">
     <h1>Halaman Konfigurasi</h1>
+    <label for="nfcId">ID NFC:</label>
+    <input type="text" id="nfcId" readonly><br>
+
+    <label for="deviceName">Nama Perangkat:</label>
+    <input type="text" id="deviceName" placeholder="Masukkan Nama Perangkat"><br>
+    
     <label for="wifi">SSID WiFi:</label>
     <input type="text" id="wifi" placeholder="Masukkan SSID WiFi"><br>
     
-    <label for="ip">Alamat IP:</label>
-    <input type="text" id="ip" placeholder="Masukkan Alamat IP"><br>
+    <label for="wifiPassword">Password WiFi:</label>
+    <input type="password" id="wifiPassword" placeholder="Masukkan Password WiFi"><br>
+
+    <label for="serverUrl">URL Server:</label>
+    <input type="text" id="serverUrl" placeholder="Masukkan URL Server"><br>
     
-    <label for="deviceId">ID Perangkat:</label>
-    <input type="text" id="deviceId" placeholder="Masukkan ID Perangkat"><br>
+    <label for="serverPort">Port Server:</label>
+    <input type="number" id="serverPort" placeholder="Masukkan Port Server"><br>
+
+    <label for="sensorType">Tipe Sensor:</label>
+    <input type="text" id="sensorType" placeholder="Masukkan Tipe Sensor"><br>
+
+    <label for="interval">Interval Kirim Data (detik):</label>
+    <input type="number" id="interval" placeholder="Masukkan Interval Detik"><br>
     
     <button id="saveConfig">Simpan Konfigurasi</button>
     <div id="statusMessage"></div>
@@ -64,8 +75,10 @@
                 for (const record of message.records) {
                     const decoder = new TextDecoder(record.encoding);
                     nfcData = decoder.decode(record.data); // Simpan data yang dibaca dari tag NFC
+                    document.getElementById('nfcId').value = record.id; // Simpan ID NFC tag
                     console.log("Data NFC:", nfcData);
                 }
+
                 if (nfcData) {
                     // Tampilkan halaman konfigurasi setelah membaca NFC
                     document.getElementById('home').classList.add('hidden');
@@ -74,9 +87,13 @@
                     // Parsing data dan mengisi input jika available
                     try {
                         const config = JSON.parse(nfcData);
+                        document.getElementById('deviceName').value = config.deviceName || '';
                         document.getElementById('wifi').value = config.wifi || '';
-                        document.getElementById('ip').value = config.ip || '';
-                        document.getElementById('deviceId').value = config.deviceId || '';
+                        document.getElementById('wifiPassword').value = config.wifiPassword || '';
+                        document.getElementById('serverUrl').value = config.serverUrl || '';
+                        document.getElementById('serverPort').value = config.serverPort || '';
+                        document.getElementById('sensorType').value = config.sensorType || '';
+                        document.getElementById('interval').value = config.interval || '';
                     } catch (error) {
                         console.warn("Tidak ada konfigurasi yang valid ditemukan.");
                     }
@@ -91,29 +108,45 @@
     document.getElementById('detectNFC').addEventListener('click', detectNFC);
 
     document.getElementById('saveConfig').addEventListener('click', async () => {
+        const deviceName = document.getElementById('deviceName').value;
         const wifi = document.getElementById('wifi').value;
-        const ip = document.getElementById('ip').value;
-        const deviceId = document.getElementById('deviceId').value;
-        
-        if (!wifi || !ip || !deviceId) {
+        const wifiPassword = document.getElementById('wifiPassword').value;
+        const serverUrl = document.getElementById('serverUrl').value;
+        const serverPort = document.getElementById('serverPort').value;
+        const sensorType = document.getElementById('sensorType').value;
+        const interval = document.getElementById('interval').value;
+
+        if (!deviceName || !wifi || !wifiPassword || !serverUrl || !serverPort || !sensorType || !interval) {
             document.getElementById('statusMessage').textContent = "Semua kolom harus diisi!";
             return;
         }
 
         // Buat objek konfigurasi
-        const configObject = { wifi, ip, deviceId };
+        const configObject = { 
+            deviceName, 
+            wifi, 
+            wifiPassword, 
+            serverUrl, 
+            serverPort, 
+            sensorType, 
+            interval 
+        };
         nfcData = JSON.stringify(configObject);
         
         // Simpan konfigurasi ke localStorage
+        localStorage.setItem('deviceName', deviceName);
         localStorage.setItem('wifi', wifi);
-        localStorage.setItem('ip', ip);
-        localStorage.setItem('deviceId', deviceId);
+        localStorage.setItem('wifiPassword', wifiPassword);
+        localStorage.setItem('serverUrl', serverUrl);
+        localStorage.setItem('serverPort', serverPort);
+        localStorage.setItem('sensorType', sensorType);
+        localStorage.setItem('interval', interval);
 
         try {
             const ndef = new NDEFReader();
             await ndef.write({ records: [{ recordType: "text", data: nfcData }] });
             document.getElementById('statusMessage').textContent = "Konfigurasi berhasil disimpan dan ditulis ke tag NFC!";
-            console.log("Konfigurasi:", { wifi, ip, deviceId });
+            console.log("Konfigurasi:", configObject);
         } catch (error) {
             console.error("Error menulis ke NFC:", error);
             document.getElementById('statusMessage').textContent = "Gagal menulis ke tag NFC. Pastikan tag NFC berada dalam jangkauan.";
