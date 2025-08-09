@@ -300,20 +300,73 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        .footer {
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+        }
+
+        .contact-info h4 {
+            color: #2d3748;
+            margin-bottom: 16px;
+            font-size: 16px;
+        }
+
+        .contact-item {
+            margin: 8px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: #f7fafc;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .contact-item span {
+            color: #4a5568;
+            font-weight: 600;
+        }
+
+        .contact-item a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .contact-item a:hover {
+            color: #764ba2;
+            text-decoration: underline;
+        }
+
+        .brand-footer {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .brand-footer p {
+            color: #718096;
+            font-size: 12px;
+            margin: 0;
+        }
     </style>
 </head>
 <body>
     <!-- Halaman Utama -->
     <div id="home" class="container">
         <div class="header">
-            <div class="logo">📡</div>
-            <h1>NFC Device Hub</h1>
-            <p class="subtitle">Konfigurasi perangkat ESP32 dengan sensor terintegrasi untuk monitoring dan kontrol otomatis</p>
+            <div class="logo">🏭</div>
+            <h1>SmartDevice Pro</h1>
+            <p class="subtitle">Platform konfigurasi perangkat IoT profesional untuk monitoring industri dan otomasi sistem cerdas</p>
         </div>
         
         <div class="device-info">
-            <h3>Komponen Sistem</h3>
-            <p>• ESP32 Microcontroller • PN532 NFC Reader • Sensor Monitoring • Server Communication • Real-time Data Transmission</p>
+            <h3>Tentang Platform Ini</h3>
+            <p>Atur parameter perangkat monitoring untuk mengoptimalkan performa sistem dan koneksi server untuk transmisi data real-time yang stabil dan terpercaya</p>
         </div>
         
         <button id="detectNFC" class="btn btn-primary">
@@ -328,7 +381,7 @@
         <div class="header">
             <div class="logo">⚙️</div>
             <h1>Konfigurasi Device</h1>
-            <p class="subtitle">Atur parameter perangkat ESP32 dan koneksi server untuk operasi optimal</p>
+            <p class="subtitle">Atur parameter perangkat monitoring untuk optimasi performa dan koneksi server untuk transmisi data yang andal</p>
         </div>
 
         <form id="configForm">
@@ -368,17 +421,20 @@
 
             <div class="config-grid">
                 <div class="form-group">
-                    <label for="sensorType">🎛️ Tipe Sensor</label>
+                    <label for="sensorType">🎯 Mode Monitoring</label>
                     <select id="sensorType" required>
-                        <option value="">Pilih tipe sensor</option>
-                        <option value="temperature">Sensor Suhu (DHT22/DS18B20)</option>
-                        <option value="humidity">Sensor Kelembaban</option>
-                        <option value="pressure">Sensor Tekanan (BMP280)</option>
-                        <option value="motion">Sensor Gerak (PIR)</option>
-                        <option value="light">Sensor Cahaya (LDR/BH1750)</option>
-                        <option value="gas">Sensor Gas (MQ Series)</option>
-                        <option value="ultrasonic">Sensor Jarak (HC-SR04)</option>
-                        <option value="custom">Sensor Kustom</option>
+                        <option value="">Pilih mode monitoring</option>
+                        <option value="temperature">Monitoring Suhu & Iklim</option>
+                        <option value="humidity">Monitoring Kelembaban</option>
+                        <option value="pressure">Monitoring Tekanan Udara</option>
+                        <option value="motion">Deteksi Pergerakan & Aktivitas</option>
+                        <option value="light">Monitoring Intensitas Cahaya</option>
+                        <option value="gas">Deteksi Kualitas Udara</option>
+                        <option value="ultrasonic">Pengukuran Jarak & Proximity</option>
+                        <option value="vibration">Monitoring Getaran & Mekanik</option>
+                        <option value="sound">Monitoring Level Kebisingan</option>
+                        <option value="multi">Multi-Parameter Monitoring</option>
+                        <option value="custom">Mode Kustom</option>
                     </select>
                 </div>
                 
@@ -401,6 +457,28 @@
         </form>
         
         <div id="statusMessage"></div>
+
+        <!-- Footer dengan kontak -->
+        <div class="footer">
+            <div class="contact-info">
+                <h4>📞 Bantuan & Dukungan</h4>
+                <div class="contact-item">
+                    <span>📱 WhatsApp:</span>
+                    <a href="https://wa.me/6285772644387" target="_blank">085772644387</a>
+                </div>
+                <div class="contact-item">
+                    <span>📧 Email:</span>
+                    <a href="mailto:immarfn17@gmail.com">immarfn17@gmail.com</a>
+                </div>
+                <div class="contact-item">
+                    <span>💻 GitHub:</span>
+                    <a href="https://github.com/VINN17" target="_blank">VINN17</a>
+                </div>
+            </div>
+            <div class="brand-footer">
+                <p>Powered by <strong>SmartDevice Pro</strong> © 2025</p>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -564,7 +642,7 @@
                     📱 Device: ${formData.deviceName}<br>
                     📶 WiFi: ${formData.wifi}<br>
                     🌐 Server: ${formData.serverUrl}:${formData.serverPort}<br>
-                    🎛️ Sensor: ${formData.sensorType}<br>
+                    🎯 Mode: ${formData.sensorType}<br>
                     ⏱️ Interval: ${formData.interval} detik`, 'success');
 
                 console.log("Konfigurasi tersimpan:", formData);
