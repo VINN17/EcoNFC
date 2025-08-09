@@ -3,69 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NFC Reader and Writer</title>
+    <title>NFC Device Configuration</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             padding: 20px;
             text-align: center;
         }
+        button, input, select {
+            margin: 10px;
+            padding: 10px;
+            font-size: 16px;
+        }
         textarea {
             width: 80%;
             margin-top: 10px;
         }
-        button {
-            margin: 10px;
-            padding: 10px 20px;
-            font-size: 16px;
+        .hidden {
+            display: none;
         }
     </style>
 </head>
 <body>
-    <h1>NFC Reader and Writer</h1>
-    <button id="readNFC">Baca NFC</button>
-    <button id="writeNFC">Tulis NFC</button>
-    <textarea id="output" rows="4" placeholder="Hasil bacaan atau data untuk ditulis..."></textarea>
-    
-    <script>
-        document.getElementById('readNFC').addEventListener('click', async () => {
-            try {
-                const ndef = new NDEFReader();
-                await ndef.scan();
-                console.log("Menunggu NFC...");
-                
-                ndef.onreading = event => {
-                    const message = event.message;
-                    let text = '';
-                    for (const record of message.records) {
-                        const decoder = new TextDecoder(record.encoding);
-                        text += decoder.decode(record.data);
-                    }
-                    document.getElementById('output').value = text;
-                    console.log("Data dibaca:", text);
-                };
-            } catch (error) {
-                console.error("Error membaca NFC:", error);
-                alert("Terjadi kesalahan saat membaca NFC. Pastikan NFC diaktifkan.");
-            }
-        });
 
-        document.getElementById('writeNFC').addEventListener('click', async () => {
-            const textToWrite = document.getElementById('output').value;
-            if (!textToWrite) {
-                alert("Silakan masukkan data yang ingin ditulis.");
-                return;
-            }
-            const ndef = new NDEFReader();
-            try {
-                await ndef.write({ records: [{ recordType: "text", data: textToWrite }] });
-                console.log("Data berhasil ditulis:", textToWrite);
-                alert("Data berhasil ditulis ke tag NFC.");
-            } catch (error) {
-                console.error("Error menulis NFC:", error);
-                alert("Terjadi kesalahan saat menulis NFC. Pastikan NFC diaktifkan.");
-            }
-        });
-    </script>
+<!-- Halaman Utama -->
+<div id="home">
+    <h1>Deteksi NFC</h1>
+    <button id="detectNFC">Mulai Deteksi NFC</button>
+    <div id="message"></div>
+</div>
+
+<!-- Halaman Konfigurasi -->
+<div id="config" class="hidden">
+    <h1>Halaman Konfigurasi</h1>
+    <label for="wifi">SSID WiFi:</label>
+    <input type="text" id="wifi" placeholder="Masukkan SSID WiFi"><br>
+    
+    <label for="ip">Alamat IP:</label>
+    <input type="text" id="ip" placeholder="Masukkan Alamat IP"><br>
+    
+    <label for="deviceId">ID Perangkat:</label>
+    <input type="text" id="deviceId" placeholder="Masukkan ID Perangkat"><br>
+    
+    <button id="saveConfig">Simpan Konfigurasi</button>
+    <div id="statusMessage"></div>
+</div>
+
+<script>
+    document.getElementById('detectNFC').addEventListener('click', async () => {
+        const ndef = new NDEFReader();
+        try {
+            await ndef.scan();
+            document.getElementById('message').textContent = "Menunggu NFC...";
+
+            ndef.onreading = event => {
+                document.getElementById('home').classList.add('hidden');
+                document.getElementById('config').classList.remove('hidden');
+
+                // Ambil data dari tag NFC
+                const message = event.message;
+                for (const record of message.records) {
+                    const decoder = new TextDecoder(record.encoding);
+                    const nfcData = decoder.decode(record.data);
+                    console.log("Data NFC:", nfcData);
+                }
+            };
+        } catch (error) {
+            console.error("Error mendeteksi NFC:", error);
+            document.getElementById('message').textContent = "Gagal mendeteksi NFC. Pastikan NFC aktif.";
+        }
+    });
+
+    document.getElementById('saveConfig').addEventListener('click', () => {
+        const wifi = document.getElementById('wifi').value;
+        const ip = document.getElementById('ip').value;
+        const deviceId = document.getElementById('deviceId').value;
+        
+        if (!wifi || !ip || !deviceId) {
+            document.getElementById('statusMessage').textContent = "Semua kolom harus diisi!";
+            return;
+        }
+
+        // Simpan konfigurasi ke localStorage
+        localStorage.setItem('wifi', wifi);
+        localStorage.setItem('ip', ip);
+        localStorage.setItem('deviceId', deviceId);
+
+        document.getElementById('statusMessage').textContent = "Konfigurasi berhasil disimpan!";
+        console.log("Konfigurasi:", { wifi, ip, deviceId });
+    });
+</script>
 </body>
 </html>
