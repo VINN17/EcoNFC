@@ -50,31 +50,47 @@
 </div>
 
 <script>
-    document.getElementById('detectNFC').addEventListener('click', async () => {
+    let nfcData = '';
+
+    // Fungsi untuk deteksi NFC
+    async function detectNFC() {
         const ndef = new NDEFReader();
         try {
             await ndef.scan();
             document.getElementById('message').textContent = "Menunggu NFC...";
 
             ndef.onreading = event => {
-                document.getElementById('home').classList.add('hidden');
-                document.getElementById('config').classList.remove('hidden');
-
-                // Ambil data dari tag NFC
                 const message = event.message;
                 for (const record of message.records) {
                     const decoder = new TextDecoder(record.encoding);
-                    const nfcData = decoder.decode(record.data);
+                    nfcData = decoder.decode(record.data); // Simpan data yang dibaca dari tag NFC
                     console.log("Data NFC:", nfcData);
+                }
+                if (nfcData) {
+                    // Tampilkan halaman konfigurasi setelah membaca NFC
+                    document.getElementById('home').classList.add('hidden');
+                    document.getElementById('config').classList.remove('hidden');
+                    
+                    // Parsing data dan mengisi input jika available
+                    try {
+                        const config = JSON.parse(nfcData);
+                        document.getElementById('wifi').value = config.wifi || '';
+                        document.getElementById('ip').value = config.ip || '';
+                        document.getElementById('deviceId').value = config.deviceId || '';
+                    } catch (error) {
+                        console.warn("Tidak ada konfigurasi yang valid ditemukan.");
+                    }
                 }
             };
         } catch (error) {
             console.error("Error mendeteksi NFC:", error);
             document.getElementById('message').textContent = "Gagal mendeteksi NFC. Pastikan NFC aktif.";
         }
-    });
+    }
 
-    document.getElementById('saveConfig').addEventListener('click', () => {
+    document.getElementById('detectNFC').addEventListener('click', detectNFC);
+
+    document.getElementById('saveConfig').addEventListener('click', async () => {
         const wifi = document.getElementById('wifi').value;
         const ip = document.getElementById('ip').value;
         const deviceId = document.getElementById('deviceId').value;
@@ -84,13 +100,24 @@
             return;
         }
 
+        // Buat objek konfigurasi
+        const configObject = { wifi, ip, deviceId };
+        nfcData = JSON.stringify(configObject);
+        
         // Simpan konfigurasi ke localStorage
         localStorage.setItem('wifi', wifi);
         localStorage.setItem('ip', ip);
         localStorage.setItem('deviceId', deviceId);
 
-        document.getElementById('statusMessage').textContent = "Konfigurasi berhasil disimpan!";
-        console.log("Konfigurasi:", { wifi, ip, deviceId });
+        try {
+            const ndef = new NDEFReader();
+            await ndef.write({ records: [{ recordType: "text", data: nfcData }] });
+            document.getElementById('statusMessage').textContent = "Konfigurasi berhasil disimpan dan ditulis ke tag NFC!";
+            console.log("Konfigurasi:", { wifi, ip, deviceId });
+        } catch (error) {
+            console.error("Error menulis ke NFC:", error);
+            document.getElementById('statusMessage').textContent = "Gagal menulis ke tag NFC. Pastikan tag NFC berada dalam jangkauan.";
+        }
     });
 </script>
 </body>
