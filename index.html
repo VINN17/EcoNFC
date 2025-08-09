@@ -1,93 +1,71 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Konfigurasi Perangkat NFC</title>
-    <script src="https://cdn.jsdelivr.net/npm/@webnfc/core/dist/webnfc.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-        }
-        #nfcStatus {
-            padding: 10px;
-            background-color: lightgray;
-            margin-bottom: 20px;
-        }
-        .config-form {
-            display: none;
-            margin-top: 20px;
-        }
-    </style>
+    <title>Konfigurasi Perangkat</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
     <h1>Konfigurasi Perangkat NFC</h1>
-    <div id="nfcStatus">Silakan tempelkan NFC Tag untuk memulai konfigurasi...</div>
-
-    <div class="config-form">
-        <h2>Pengaturan Perangkat</h2>
-        <form id="deviceConfigForm">
-            <label for="ssid">SSID Wi-Fi:</label><br>
-            <input type="text" id="ssid" name="ssid" required><br><br>
-
-            <label for="password">Password Wi-Fi:</label><br>
-            <input type="password" id="password" name="password" required><br><br>
-
-            <label for="serverUrl">Server URL:</label><br>
-            <input type="text" id="serverUrl" name="serverUrl" required><br><br>
-
-            <button type="submit">Simpan Konfigurasi</button>
-        </form>
-    </div>
+    <div id="nfc-status"></div>
+    <form id="config-form" style="display: none;">
+        <label for="server-url">URL Server:</label>
+        <input type="text" id="server-url" required>
+        <br>
+        <label for="sensor-threshold">Ambang Sensor:</label>
+        <input type="number" id="sensor-threshold" required>
+        <br>
+        <button type="submit">Simpan Konfigurasi</button>
+    </form>
 
     <script>
-        // Mengecek apakah Web NFC tersedia
-        if ('NFC' in window) {
-            document.getElementById('nfcStatus').innerHTML = 'Menunggu NFC Tag...';
+        $(document).ready(function() {
+            // Fungsi untuk mendeteksi NFC
+            function readNFC() {
+                // Implementasi pembacaan NFC menggunakan Web NFC API
+                if ('NFC' in window) {
+                    const ndef = new NDEFReader();
+                    ndef.scan().then(() => {
+                        console.log("Scan NFC...");
+                        ndef.onreading = event => {
+                            const message = event.message;
+                            console.log("NFC Tag dibaca!", message);
+                            // Sembunyikan pesan status dan tampilkan form
+                            $('#nfc-status').text('NFC Tag sudah terbaca.');
+                            $('#config-form').show();
+                        };
+                    }).catch(error => {
+                        console.error("NFC tidak tersedia:", error);
+                    });
+                } else {
+                    $('#nfc-status').text('NFC tidak didukung di browser ini.');
+                }
+            }
 
-            // Inisialisasi pembaca NFC
-            const nfc = new NFC();
-            
-            nfc.onreading = async (event) => {
-                const tag = event.target;
-                console.log("NFC Tag Terbaca:", tag);
+            // Saat form disubmit
+            $('#config-form').on('submit', function(event) {
+                event.preventDefault();
+                const serverUrl = $('#server-url').val();
+                const threshold = $('#sensor-threshold').val();
 
-                // Tampilkan form konfigurasi setelah NFC terdeteksi
-                document.querySelector('.config-form').style.display = 'block';
-                document.getElementById('nfcStatus').innerHTML = 'NFC Tag Detected! Silakan masukkan pengaturan perangkat.';
+                // Kirim data ke ESP32 via API
+                $.ajax({
+                    url: 'http://ESP32_IP_ADDRESS/config', // Ganti dengan alamat ESP32 Anda
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ serverUrl, threshold }),
+                    success: function(response) {
+                        alert('Konfigurasi disimpan!');
+                    },
+                    error: function(error) {
+                        alert('Gagal menyimpan konfigurasi:', error);
+                    }
+                });
+            });
 
-                // Simpan data NFC ke dalam form (opsional)
-                document.getElementById('deviceConfigForm').onsubmit = function(event) {
-                    event.preventDefault();
-                    
-                    const ssid = document.getElementById('ssid').value;
-                    const password = document.getElementById('password').value;
-                    const serverUrl = document.getElementById('serverUrl').value;
-
-                    // Kirim data ke server
-                    fetch('http://localhost:3000/save-config', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            nfcUID: tag.id,
-                            ssid: ssid,
-                            password: password,
-                            serverUrl: serverUrl
-                        })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        alert('Konfigurasi berhasil disimpan ke NFC Tag!');
-                    })
-                    .catch(error => console.error('Error:', error));
-                };
-            };
-        } else {
-            document.getElementById('nfcStatus').innerHTML = 'Web NFC tidak didukung oleh browser ini.';
-        }
+            readNFC(); // Mulai membaca NFC saat halaman dimuat
+        });
     </script>
 </body>
 </html>
