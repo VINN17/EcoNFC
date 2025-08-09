@@ -1,163 +1,84 @@
-<script>
-    let nfcSupported = false;
-    let nfcReader = null;
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Web NFC — Read & Write (Demo)</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial}
+    body{padding:18px;background:#f7f9fc;color:#111}
+    .card{background:#fff;border-radius:10px;box-shadow:0 6px 18px rgba(20,30,60,0.08);padding:16px;max-width:760px;margin:12px auto}
+    h1{font-size:20px;margin-bottom:6px}
+    label{display:block;font-size:13px;margin-top:12px}
+    input[type=text], textarea, select{width:100%;padding:10px;margin-top:6px;border:1px solid #dfe6f0;border-radius:8px}
+    button{margin-top:10px;padding:10px 14px;border-radius:8px;border:0;background:#0b5fff;color:white;cursor:pointer}
+    button.secondary{background:#2f3b46}
+    pre{white-space:pre-wrap;background:#0f1724;color:#e6f0ff;padding:10px;border-radius:8px}
+    .row{display:flex;gap:8px}
+    .muted{color:#6b7280;font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Web NFC — Read &amp; Write (Demo)</h1>
+    <p class="muted">Catatan: Web NFC hanya didukung di Chrome/Android (dan browser berbasis Chromium di Android). Aplikasi ini perlu dijalankan dari <strong>HTTPS</strong> atau <strong>localhost</strong>. Pastikan perangkat Android punya NFC dan NFC diaktifkan.</p>
 
-    // Check NFC support
-    if ('NDEFReader' in window) {
-        nfcSupported = true;
-    }
+    <label>Jenis tulis</label>
+    <select id="recordType">
+      <option value="text">Text (plain)</option>
+      <option value="url">URL</option>
+      <option value="mime">MIME (custom)</option>
+    </select>
 
-    const statusDiv = document.getElementById('status');
-    const startNfcBtn = document.getElementById('startNfc');
-    const configForm = document.getElementById('configForm');
-    const saveConfigBtn = document.getElementById('saveConfig');
+    <div id="mimeArea" style="display:none">
+      <label>Mime type (contoh: text/plain)</label>
+      <input id="mimeType" type="text" placeholder="text/plain">
+    </div>
 
-    // Update status
-    function updateStatus(message, type = 'waiting') {
-        statusDiv.textContent = message;
-        statusDiv.className = `status ${type}`;
-    }
+    <label>Data yang akan ditulis</label>
+    <textarea id="writeData" rows="3" placeholder="Tulis teks atau URL di sini">Hello from Web NFC!</textarea>
 
-    // Generate random device ID
-    function generateDeviceId() {
-        return 'DEV_' + Math.random().toString(36).substr(2, 8).toUpperCase();
-    }
+    <div class="row">
+      <button id="writeBtn">Tulis ke tag (Write)</button>
+      <button id="readStartBtn" class="secondary">Mulai scan (Read)</button>
+      <button id="readStopBtn" class="secondary" disabled>Stop scan</button>
+    </div>
 
-    // Start NFC detection
-    startNfcBtn.addEventListener('click', async () => {
-        if (!nfcSupported) {
-            updateStatus('NFC tidak didukung pada browser ini', 'error');
-            return;
-        }
+    <hr style="margin:14px 0">
 
-        try {
-            nfcReader = new NDEFReader();
+    <h3>Status</h3>
+    <div id="status" class="muted">Idle</div>
 
-            startNfcBtn.textContent = 'Mendeteksi NFC...';
-            startNfcBtn.disabled = true;
+    <h3>Hasil bacaan tag</h3>
+    <div id="result">
+      <pre id="output">Belum ada data</pre>
+    </div>
 
-            await nfcReader.scan();
-            updateStatus('Siap! Tempel HP ke NFC tag device', 'waiting');
+    <details style="margin-top:12px">
+      <summary>Instruksi singkat</summary>
+      <ol>
+        <li>Jalankan file ini melalui server HTTPS (contoh: GitHub Pages, ngrok, atau server Anda sendiri).</li>
+        <li>Buka halaman ini di Chrome pada perangkat Android yang memiliki NFC.</li>
+        <li>Untuk menulis: pilih jenis (text/url/mime), isi data, lalu klik <em>Write</em> dan tempelkan tag NFC saat diminta.</li>
+        <li>Untuk membaca: klik <em>Mulai scan</em> lalu dekatkan tag NFC ke perangkat.</li>
+      </ol>
+    </details>
+  </div>
 
-            // Listen for NFC reads
-            nfcReader.addEventListener('reading', event => {
-                updateStatus('NFC tag terdeteksi! Device terhubung', 'connected');
-                configForm.classList.add('show');
+  <script>
+    // Elemen
+    const writeBtn = document.getElementById('writeBtn');
+    const readStartBtn = document.getElementById('readStartBtn');
+    const readStopBtn = document.getElementById('readStopBtn');
+    const statusEl = document.getElementById('status');
+    const outputEl = document.getElementById('output');
+    const recordType = document.getElementById('recordType');
+    const mimeArea = document.getElementById('mimeArea');
+    const mimeTypeInput = document.getElementById('mimeType');
 
-                // Auto-generate device ID if empty
-                if (!document.getElementById('deviceId').value) {
-                    document.getElementById('deviceId').value = generateDeviceId();
-                }
+    let ndefReader = null;
+    let scanController = null;
 
-                startNfcBtn.style.display = 'none';
-            });
-
-            nfcReader.addEventListener('readingerror', () => {
-                updateStatus('Error membaca NFC tag', 'error');
-            });
-
-        } catch (error) {
-            console.error('NFC Error:', error);
-            updateStatus('Error: ' + error.message, 'error');
-            startNfcBtn.disabled = false;
-            startNfcBtn.textContent = 'Mulai Deteksi NFC';
-        }
-    });
-
-    // Save configuration to NFC
-    saveConfigBtn.addEventListener('click', async () => {
-        const config = {
-            deviceId: document.getElementById('deviceId').value,
-            deviceName: document.getElementById('deviceName').value,
-            wifiSSID: document.getElementById('wifiSSID').value,
-            wifiPassword: document.getElementById('wifiPassword').value,
-            serverUrl: document.getElementById('serverUrl').value,
-            serverPort: document.getElementById('serverPort').value,
-            sensorType: document.getElementById('sensorType').value,
-            sendInterval: document.getElementById('sendInterval').value,
-            timestamp: new Date().toISOString()
-        };
-
-        // Validate required fields
-        if (!config.deviceId || !config.wifiSSID || !config.serverUrl) {
-            updateStatus('Mohon lengkapi Device ID, WiFi SSID, dan Server URL', 'error');
-            return;
-        }
-
-        try {
-            saveConfigBtn.textContent = 'Tempel HP ke NFC Tag...';
-            saveConfigBtn.disabled = true;
-
-            if (nfcReader && nfcSupported) {
-                // Create NDEF message with proper formatting
-                const configString = JSON.stringify(config);
-                const encoder = new TextEncoder();
-                const data = encoder.encode(configString);
-
-                // Write to NFC tag
-                await nfcReader.write({
-                    records: [
-                        {
-                            recordType: "text", // Store data as text
-                            data: configString,
-                            encoding: "utf-8",
-                            lang: "en"
-                        }
-                    ]
-                });
-
-                updateStatus('✅ Konfigurasi berhasil disimpan ke NFC tag!', 'connected');
-
-                // Vibrate if available
-                if (navigator.vibrate) {
-                    navigator.vibrate([200, 100, 200]);
-                }
-
-                // Show success message
-                setTimeout(() => {
-                    updateStatus('Device akan restart dan terhubung ke server', 'connected');
-                }, 2000);
-
-            } else {
-                throw new Error('NFC tidak tersedia atau browser tidak mendukung penulisan ke NFC tag.');
-            }
-
-        } catch (error) {
-            console.error('Save Error:', error);
-            updateStatus('❌ Error: ' + error.message, 'error');
-
-            // Show detailed error info
-            const errorDetails = document.createElement('div');
-            errorDetails.innerHTML = `
-                <small style="display: block; margin-top: 10px; color: #666;">
-                    Pastikan:<br>
-                    • NFC diaktifkan di HP<br>
-                    • NFC tag dapat ditulis (tidak write-protected)<br>
-                    • Tempel HP tepat di atas NFC tag<br>
-                    • Gunakan Chrome browser
-                </small>
-            `;
-            statusDiv.appendChild(errorDetails);
-
-        } finally {
-            saveConfigBtn.textContent = 'Simpan Konfigurasi ke NFC';
-            saveConfigBtn.disabled = false;
-        }
-    });
-
-    // Show alternative for non-NFC browsers
-    if (!nfcSupported) {
-        updateStatus('Browser tidak mendukung NFC. Gunakan Chrome di Android.', 'error');
-        startNfcBtn.textContent = 'NFC Tidak Tersedia';
-        startNfcBtn.disabled = true;
-
-        // Still allow configuration form
-        setTimeout(() => {
-            configForm.classList.add('show');
-            document.getElementById('deviceId').value = generateDeviceId();
-            updateStatus('Mode Manual: Isi konfigurasi lalu salin data', 'waiting');
-        }, 3000);
-    }
-</script>
-
-
+    // Tampilkan field MIME bila diperlukan
+    recordType.addEventListener('change', () => {
+      mimeArea.style.display = (recordType.value === 'mime') ? 'block' : 'none';
