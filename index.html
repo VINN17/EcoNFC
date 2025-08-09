@@ -1,445 +1,161 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Konfigurasi Device IoT</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+<script>
+    let nfcSupported = false;
+    let nfcReader = null;
+
+    // Check NFC support
+    if ('NDEFReader' in window) {
+        nfcSupported = true;
+    }
+
+    const statusDiv = document.getElementById('status');
+    const startNfcBtn = document.getElementById('startNfc');
+    const configForm = document.getElementById('configForm');
+    const saveConfigBtn = document.getElementById('saveConfig');
+
+    // Update status
+    function updateStatus(message, type = 'waiting') {
+        statusDiv.textContent = message;
+        statusDiv.className = `status ${type}`;
+    }
+
+    // Generate random device ID
+    function generateDeviceId() {
+        return 'DEV_' + Math.random().toString(36).substr(2, 8).toUpperCase();
+    }
+
+    // Start NFC detection
+    startNfcBtn.addEventListener('click', async () => {
+        if (!nfcSupported) {
+            updateStatus('NFC tidak didukung pada browser ini', 'error');
+            return;
         }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
+        try {
+            nfcReader = new NDEFReader();
 
-        .container {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            max-width: 500px;
-            width: 100%;
-            text-align: center;
-        }
+            startNfcBtn.textContent = 'Mendeteksi NFC...';
+            startNfcBtn.disabled = true;
 
-        h1 {
-            color: #333;
-            margin-bottom: 30px;
-            font-size: 2em;
-        }
+            await nfcReader.scan();
+            updateStatus('Siap! Tempel HP ke NFC tag device', 'waiting');
 
-        .nfc-icon {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 20px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #4CAF50, #45a049);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2em;
-            color: white;
-            animation: pulse 2s infinite;
-        }
+            // Listen for NFC reads
+            nfcReader.addEventListener('reading', event => {
+                updateStatus('NFC tag terdeteksi! Device terhubung', 'connected');
+                configForm.classList.add('show');
 
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-
-        .status {
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 30px;
-            font-weight: bold;
-        }
-
-        .status.waiting {
-            background: #e3f2fd;
-            color: #1976d2;
-            border: 2px solid #bbdefb;
-        }
-
-        .status.connected {
-            background: #e8f5e8;
-            color: #2e7d32;
-            border: 2px solid #a5d6a7;
-        }
-
-        .status.error {
-            background: #ffebee;
-            color: #c62828;
-            border: 2px solid #ef9a9a;
-        }
-
-        .config-form {
-            display: none;
-            text-align: left;
-            margin-top: 20px;
-        }
-
-        .config-form.show {
-            display: block;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-            color: #333;
-        }
-
-        input, select {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s;
-        }
-
-        input:focus, select:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .btn {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 25px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-            width: 100%;
-            margin-top: 20px;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-        }
-
-        .btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .instructions {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
-            margin-top: 20px;
-            border-left: 4px solid #667eea;
-        }
-
-        .instructions h3 {
-            color: #333;
-            margin-bottom: 10px;
-        }
-
-        .instructions ul {
-            text-align: left;
-            color: #666;
-        }
-
-        .instructions li {
-            margin-bottom: 8px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Konfigurasi Device IoT</h1>
-        
-        <div class="nfc-icon">
-            📱
-        </div>
-
-        <div id="status" class="status waiting">
-            Tempel HP ke NFC tag device untuk mulai konfigurasi
-        </div>
-
-        <button id="startNfc" class="btn">Mulai Deteksi NFC</button>
-
-        <div id="configForm" class="config-form">
-            <h3 style="margin-bottom: 20px; color: #333;">Pengaturan Device</h3>
-            
-            <div class="form-group">
-                <label for="deviceId">Device ID:</label>
-                <input type="text" id="deviceId" placeholder="Masukkan ID unik device">
-            </div>
-
-            <div class="form-group">
-                <label for="deviceName">Nama Device:</label>
-                <input type="text" id="deviceName" placeholder="Contoh: Sensor Ruang 1">
-            </div>
-
-            <div class="form-group">
-                <label for="wifiSSID">WiFi SSID:</label>
-                <input type="text" id="wifiSSID" placeholder="Nama WiFi">
-            </div>
-
-            <div class="form-group">
-                <label for="wifiPassword">WiFi Password:</label>
-                <input type="password" id="wifiPassword" placeholder="Password WiFi">
-            </div>
-
-            <div class="form-group">
-                <label for="serverUrl">Server URL:</label>
-                <input type="text" id="serverUrl" placeholder="http://192.168.1.100:8080" value="http://192.168.1.100:8080">
-            </div>
-
-            <div class="form-group">
-                <label for="serverPort">Server Port:</label>
-                <input type="number" id="serverPort" placeholder="8080" value="8080">
-            </div>
-
-            <div class="form-group">
-                <label for="sensorType">Tipe Sensor:</label>
-                <select id="sensorType">
-                    <option value="temperature">Temperature (DHT22)</option>
-                    <option value="humidity">Humidity (DHT22)</option>
-                    <option value="both">Temperature & Humidity</option>
-                    <option value="motion">Motion (PIR)</option>
-                    <option value="light">Light (LDR)</option>
-                    <option value="custom">Custom</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="sendInterval">Interval Kirim Data (detik):</label>
-                <input type="number" id="sendInterval" placeholder="30" value="30" min="5" max="3600">
-            </div>
-
-            <button id="saveConfig" class="btn">Simpan Konfigurasi ke NFC</button>
-        </div>
-
-        <div class="instructions">
-            <h3>Instruksi Penggunaan:</h3>
-            <ul>
-                <li>Pastikan HP mendukung NFC dan sudah diaktifkan</li>
-                <li>Tempel HP ke NFC tag pada device</li>
-                <li>Isi konfigurasi yang diperlukan</li>
-                <li>Tekan "Simpan Konfigurasi ke NFC"</li>
-                <li>Device akan otomatis restart dan terhubung ke server</li>
-            </ul>
-        </div>
-    </div>
-
-    <script>
-        let nfcSupported = false;
-        let nfcReader = null;
-
-        // Check NFC support
-        if ('NDEFReader' in window) {
-            nfcSupported = true;
-        }
-
-        const statusDiv = document.getElementById('status');
-        const startNfcBtn = document.getElementById('startNfc');
-        const configForm = document.getElementById('configForm');
-        const saveConfigBtn = document.getElementById('saveConfig');
-
-        // Update status
-        function updateStatus(message, type = 'waiting') {
-            statusDiv.textContent = message;
-            statusDiv.className = `status ${type}`;
-        }
-
-        // Generate random device ID
-        function generateDeviceId() {
-            return 'DEV_' + Math.random().toString(36).substr(2, 8).toUpperCase();
-        }
-
-        // Start NFC detection
-        startNfcBtn.addEventListener('click', async () => {
-            if (!nfcSupported) {
-                updateStatus('NFC tidak didukung pada browser ini', 'error');
-                return;
-            }
-
-            try {
-                nfcReader = new NDEFReader();
-                
-                startNfcBtn.textContent = 'Mendeteksi NFC...';
-                startNfcBtn.disabled = true;
-                
-                await nfcReader.scan();
-                updateStatus('Siap! Tempel HP ke NFC tag device', 'waiting');
-
-                // Listen for NFC reads
-                nfcReader.addEventListener('reading', event => {
-                    updateStatus('NFC tag terdeteksi! Device terhubung', 'connected');
-                    configForm.classList.add('show');
-                    
-                    // Auto-generate device ID if empty
-                    if (!document.getElementById('deviceId').value) {
-                        document.getElementById('deviceId').value = generateDeviceId();
-                    }
-
-                    startNfcBtn.style.display = 'none';
-                });
-
-                nfcReader.addEventListener('readingerror', () => {
-                    updateStatus('Error membaca NFC tag', 'error');
-                });
-
-            } catch (error) {
-                console.error('NFC Error:', error);
-                updateStatus('Error: ' + error.message, 'error');
-                startNfcBtn.disabled = false;
-                startNfcBtn.textContent = 'Mulai Deteksi NFC';
-            }
-        });
-
-        // Save configuration to NFC
-        saveConfigBtn.addEventListener('click', async () => {
-            const config = {
-                deviceId: document.getElementById('deviceId').value,
-                deviceName: document.getElementById('deviceName').value,
-                wifiSSID: document.getElementById('wifiSSID').value,
-                wifiPassword: document.getElementById('wifiPassword').value,
-                serverUrl: document.getElementById('serverUrl').value,
-                serverPort: document.getElementById('serverPort').value,
-                sensorType: document.getElementById('sensorType').value,
-                sendInterval: document.getElementById('sendInterval').value,
-                timestamp: new Date().toISOString()
-            };
-
-            // Validate required fields
-            if (!config.deviceId || !config.wifiSSID || !config.serverUrl) {
-                updateStatus('Mohon lengkapi Device ID, WiFi SSID, dan Server URL', 'error');
-                return;
-            }
-
-            try {
-                saveConfigBtn.textContent = 'Tempel HP ke NFC Tag...';
-                saveConfigBtn.disabled = true;
-
-                if (nfcReader && nfcSupported) {
-                    // Create NDEF message with proper formatting
-                    const configString = JSON.stringify(config);
-                    const encoder = new TextEncoder();
-                    const data = encoder.encode(configString);
-
-                    // Write to NFC tag with multiple attempts
-                    let writeSuccess = false;
-                    let attempts = 0;
-                    const maxAttempts = 3;
-
-                    while (!writeSuccess && attempts < maxAttempts) {
-                        try {
-                            updateStatus(`Menyimpan ke NFC... Percobaan ${attempts + 1}`, 'waiting');
-                            
-                            await nfcReader.write({
-                                records: [
-                                    {
-                                        recordType: "text",
-                                        data: configString,
-                                        encoding: "utf-8",
-                                        lang: "en"
-                                    }
-                                ]
-                            });
-
-                            writeSuccess = true;
-                            updateStatus('✅ Konfigurasi berhasil disimpan ke NFC tag!', 'connected');
-                            
-                            // Vibrate if available
-                            if (navigator.vibrate) {
-                                navigator.vibrate([200, 100, 200]);
-                            }
-                            
-                            // Show success message
-                            setTimeout(() => {
-                                updateStatus('Device akan restart dan terhubung ke server', 'connected');
-                            }, 2000);
-
-                        } catch (writeError) {
-                            console.error(`Write attempt ${attempts + 1} failed:`, writeError);
-                            attempts++;
-                            
-                            if (attempts < maxAttempts) {
-                                updateStatus(`Gagal menulis, coba lagi... (${attempts}/${maxAttempts})`, 'error');
-                                await new Promise(resolve => setTimeout(resolve, 1000));
-                            }
-                        }
-                    }
-
-                    if (!writeSuccess) {
-                        throw new Error('Gagal menulis ke NFC tag setelah 3 percobaan');
-                    }
-
-                } else {
-                    // Alternative method: Create downloadable config file
-                    const configBlob = new Blob([JSON.stringify(config, null, 2)], 
-                        { type: 'application/json' });
-                    const url = URL.createObjectURL(configBlob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `device_config_${config.deviceId}.json`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                    
-                    updateStatus('Konfigurasi disimpan sebagai file. Upload ke device secara manual.', 'connected');
+                // Auto-generate device ID if empty
+                if (!document.getElementById('deviceId').value) {
+                    document.getElementById('deviceId').value = generateDeviceId();
                 }
 
-            } catch (error) {
-                console.error('Save Error:', error);
-                updateStatus('❌ Error: ' + error.message, 'error');
-                
-                // Show detailed error info
-                const errorDetails = document.createElement('div');
-                errorDetails.innerHTML = `
-                    <small style="display: block; margin-top: 10px; color: #666;">
-                        Pastikan:<br>
-                        • NFC diaktifkan di HP<br>
-                        • NFC tag dapat ditulis (tidak write-protected)<br>
-                        • Tempel HP tepat di atas NFC tag<br>
-                        • Gunakan Chrome browser
-                    </small>
-                `;
-                statusDiv.appendChild(errorDetails);
-                
-            } finally {
-                saveConfigBtn.textContent = 'Simpan Konfigurasi ke NFC';
-                saveConfigBtn.disabled = false;
-            }
-        });
+                startNfcBtn.style.display = 'none';
+            });
 
-        // Show alternative for non-NFC browsers
-        if (!nfcSupported) {
-            updateStatus('Browser tidak mendukung NFC. Gunakan Chrome di Android.', 'error');
-            startNfcBtn.textContent = 'NFC Tidak Tersedia';
-            startNfcBtn.disabled = true;
-            
-            // Still allow configuration form
-            setTimeout(() => {
-                configForm.classList.add('show');
-                document.getElementById('deviceId').value = generateDeviceId();
-                updateStatus('Mode Manual: Isi konfigurasi lalu salin data', 'waiting');
-            }, 3000);
+            nfcReader.addEventListener('readingerror', () => {
+                updateStatus('Error membaca NFC tag', 'error');
+            });
+
+        } catch (error) {
+            console.error('NFC Error:', error);
+            updateStatus('Error: ' + error.message, 'error');
+            startNfcBtn.disabled = false;
+            startNfcBtn.textContent = 'Mulai Deteksi NFC';
         }
-    </script>
-</body>
-</html>
+    });
+
+    // Save configuration to NFC
+    saveConfigBtn.addEventListener('click', async () => {
+        const config = {
+            deviceId: document.getElementById('deviceId').value,
+            deviceName: document.getElementById('deviceName').value,
+            wifiSSID: document.getElementById('wifiSSID').value,
+            wifiPassword: document.getElementById('wifiPassword').value,
+            serverUrl: document.getElementById('serverUrl').value,
+            serverPort: document.getElementById('serverPort').value,
+            sensorType: document.getElementById('sensorType').value,
+            sendInterval: document.getElementById('sendInterval').value,
+            timestamp: new Date().toISOString()
+        };
+
+        // Validate required fields
+        if (!config.deviceId || !config.wifiSSID || !config.serverUrl) {
+            updateStatus('Mohon lengkapi Device ID, WiFi SSID, dan Server URL', 'error');
+            return;
+        }
+
+        try {
+            saveConfigBtn.textContent = 'Tempel HP ke NFC Tag...';
+            saveConfigBtn.disabled = true;
+
+            if (nfcReader && nfcSupported) {
+                // Create NDEF message with proper formatting
+                const configString = JSON.stringify(config);
+                const encoder = new TextEncoder();
+                const data = encoder.encode(configString);
+
+                // Write to NFC tag
+                await nfcReader.write({
+                    records: [
+                        {
+                            recordType: "text", // Store data as text
+                            data: configString,
+                            encoding: "utf-8",
+                            lang: "en"
+                        }
+                    ]
+                });
+
+                updateStatus('✅ Konfigurasi berhasil disimpan ke NFC tag!', 'connected');
+
+                // Vibrate if available
+                if (navigator.vibrate) {
+                    navigator.vibrate([200, 100, 200]);
+                }
+
+                // Show success message
+                setTimeout(() => {
+                    updateStatus('Device akan restart dan terhubung ke server', 'connected');
+                }, 2000);
+
+            } else {
+                throw new Error('NFC tidak tersedia atau browser tidak mendukung penulisan ke NFC tag.');
+            }
+
+        } catch (error) {
+            console.error('Save Error:', error);
+            updateStatus('❌ Error: ' + error.message, 'error');
+
+            // Show detailed error info
+            const errorDetails = document.createElement('div');
+            errorDetails.innerHTML = `
+                <small style="display: block; margin-top: 10px; color: #666;">
+                    Pastikan:<br>
+                    • NFC diaktifkan di HP<br>
+                    • NFC tag dapat ditulis (tidak write-protected)<br>
+                    • Tempel HP tepat di atas NFC tag<br>
+                    • Gunakan Chrome browser
+                </small>
+            `;
+            statusDiv.appendChild(errorDetails);
+
+        } finally {
+            saveConfigBtn.textContent = 'Simpan Konfigurasi ke NFC';
+            saveConfigBtn.disabled = false;
+        }
+    });
+
+    // Show alternative for non-NFC browsers
+    if (!nfcSupported) {
+        updateStatus('Browser tidak mendukung NFC. Gunakan Chrome di Android.', 'error');
+        startNfcBtn.textContent = 'NFC Tidak Tersedia';
+        startNfcBtn.disabled = true;
+
+        // Still allow configuration form
+        setTimeout(() => {
+            configForm.classList.add('show');
+            document.getElementById('deviceId').value = generateDeviceId();
+            updateStatus('Mode Manual: Isi konfigurasi lalu salin data', 'waiting');
+        }, 3000);
+    }
+</script>
