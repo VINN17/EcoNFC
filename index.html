@@ -333,37 +333,94 @@
             }
 
             try {
-                saveConfigBtn.textContent = 'Menyimpan...';
+                saveConfigBtn.textContent = 'Tempel HP ke NFC Tag...';
                 saveConfigBtn.disabled = true;
 
                 if (nfcReader && nfcSupported) {
-                    // Write to NFC tag
-                    await nfcReader.write({
-                        records: [
-                            {
-                                recordType: "text",
-                                data: JSON.stringify(config)
-                            }
-                        ]
-                    });
+                    // Create NDEF message with proper formatting
+                    const configString = JSON.stringify(config);
+                    const encoder = new TextEncoder();
+                    const data = encoder.encode(configString);
 
-                    updateStatus('Konfigurasi berhasil disimpan ke NFC tag!', 'connected');
-                    
-                    // Show success message
-                    setTimeout(() => {
-                        updateStatus('Device akan restart dan terhubung ke server', 'connected');
-                    }, 2000);
+                    // Write to NFC tag with multiple attempts
+                    let writeSuccess = false;
+                    let attempts = 0;
+                    const maxAttempts = 3;
+
+                    while (!writeSuccess && attempts < maxAttempts) {
+                        try {
+                            updateStatus(`Menyimpan ke NFC... Percobaan ${attempts + 1}`, 'waiting');
+                            
+                            await nfcReader.write({
+                                records: [
+                                    {
+                                        recordType: "text",
+                                        data: configString,
+                                        encoding: "utf-8",
+                                        lang: "en"
+                                    }
+                                ]
+                            });
+
+                            writeSuccess = true;
+                            updateStatus('✅ Konfigurasi berhasil disimpan ke NFC tag!', 'connected');
+                            
+                            // Vibrate if available
+                            if (navigator.vibrate) {
+                                navigator.vibrate([200, 100, 200]);
+                            }
+                            
+                            // Show success message
+                            setTimeout(() => {
+                                updateStatus('Device akan restart dan terhubung ke server', 'connected');
+                            }, 2000);
+
+                        } catch (writeError) {
+                            console.error(`Write attempt ${attempts + 1} failed:`, writeError);
+                            attempts++;
+                            
+                            if (attempts < maxAttempts) {
+                                updateStatus(`Gagal menulis, coba lagi... (${attempts}/${maxAttempts})`, 'error');
+                                await new Promise(resolve => setTimeout(resolve, 1000));
+                            }
+                        }
+                    }
+
+                    if (!writeSuccess) {
+                        throw new Error('Gagal menulis ke NFC tag setelah 3 percobaan');
+                    }
 
                 } else {
-                    // Fallback: show config data for manual input
-                    updateStatus('Konfigurasi siap (Copy data berikut ke device)', 'connected');
-                    console.log('Config Data:', JSON.stringify(config, null, 2));
-                    alert('Config data telah disimpan. Lihat console untuk data lengkap.');
+                    // Alternative method: Create downloadable config file
+                    const configBlob = new Blob([JSON.stringify(config, null, 2)], 
+                        { type: 'application/json' });
+                    const url = URL.createObjectURL(configBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `device_config_${config.deviceId}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    
+                    updateStatus('Konfigurasi disimpan sebagai file. Upload ke device secara manual.', 'connected');
                 }
 
             } catch (error) {
                 console.error('Save Error:', error);
-                updateStatus('Error menyimpan konfigurasi: ' + error.message, 'error');
+                updateStatus('❌ Error: ' + error.message, 'error');
+                
+                // Show detailed error info
+                const errorDetails = document.createElement('div');
+                errorDetails.innerHTML = `
+                    <small style="display: block; margin-top: 10px; color: #666;">
+                        Pastikan:<br>
+                        • NFC diaktifkan di HP<br>
+                        • NFC tag dapat ditulis (tidak write-protected)<br>
+                        • Tempel HP tepat di atas NFC tag<br>
+                        • Gunakan Chrome browser
+                    </small>
+                `;
+                statusDiv.appendChild(errorDetails);
+                
             } finally {
                 saveConfigBtn.textContent = 'Simpan Konfigurasi ke NFC';
                 saveConfigBtn.disabled = false;
