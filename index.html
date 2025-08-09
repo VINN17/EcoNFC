@@ -1,136 +1,93 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Konfigurasi IoT via NFC</title>
+    <title>Konfigurasi Perangkat NFC</title>
+    <script src="https://cdn.jsdelivr.net/npm/@webnfc/core/dist/webnfc.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
-            background: #f3f4f6;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .container {
-            background: white;
             padding: 20px;
-            border-radius: 10px;
-            width: 300px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
-        h2 {
-            text-align: center;
+        #nfcStatus {
+            padding: 10px;
+            background-color: lightgray;
             margin-bottom: 20px;
         }
-        label {
-            font-size: 14px;
-            margin-top: 10px;
-            display: block;
-        }
-        input {
-            width: 100%;
-            padding: 8px;
-            margin-top: 4px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-        button {
-            margin-top: 15px;
-            width: 100%;
-            padding: 10px;
-            background: #2563eb;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-        }
-        button:active {
-            background: #1d4ed8;
+        .config-form {
+            display: none;
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
+    <h1>Konfigurasi Perangkat NFC</h1>
+    <div id="nfcStatus">Silakan tempelkan NFC Tag untuk memulai konfigurasi...</div>
 
-<div class="container">
-    <h2>Konfigurasi IoT</h2>
-    <label for="wifi-ssid">WiFi SSID</label>
-    <input type="text" id="wifi-ssid" placeholder="Masukkan SSID">
+    <div class="config-form">
+        <h2>Pengaturan Perangkat</h2>
+        <form id="deviceConfigForm">
+            <label for="ssid">SSID Wi-Fi:</label><br>
+            <input type="text" id="ssid" name="ssid" required><br><br>
 
-    <label for="wifi-password">WiFi Password</label>
-    <input type="password" id="wifi-password" placeholder="Masukkan Password">
+            <label for="password">Password Wi-Fi:</label><br>
+            <input type="password" id="password" name="password" required><br><br>
 
-    <label for="device-name">Nama Perangkat</label>
-    <input type="text" id="device-name" placeholder="Masukkan Nama Perangkat">
+            <label for="serverUrl">Server URL:</label><br>
+            <input type="text" id="serverUrl" name="serverUrl" required><br><br>
 
-    <button onclick="saveConfig()">💾 Simpan ke NFC</button>
-</div>
+            <button type="submit">Simpan Konfigurasi</button>
+        </form>
+    </div>
 
-<script>
-async function saveConfig() {
-    const ssid = document.getElementById('wifi-ssid').value;
-    const password = document.getElementById('wifi-password').value;
-    const deviceName = document.getElementById('device-name').value;
+    <script>
+        // Mengecek apakah Web NFC tersedia
+        if ('NFC' in window) {
+            document.getElementById('nfcStatus').innerHTML = 'Menunggu NFC Tag...';
 
-    if (!ssid || !password || !deviceName) {
-        alert('⚠ Semua field harus diisi.');
-        return;
-    }
+            // Inisialisasi pembaca NFC
+            const nfc = new NFC();
+            
+            nfc.onreading = async (event) => {
+                const tag = event.target;
+                console.log("NFC Tag Terbaca:", tag);
 
-    if ('NDEFReader' in window) {
-        try {
-            const ndef = new NDEFReader();
-            await ndef.scan();
-            alert("Tempelkan tag NFC dan jangan dilepas sampai proses selesai ⌛");
+                // Tampilkan form konfigurasi setelah NFC terdeteksi
+                document.querySelector('.config-form').style.display = 'block';
+                document.getElementById('nfcStatus').innerHTML = 'NFC Tag Detected! Silakan masukkan pengaturan perangkat.';
 
-            let tagPresent = true;
+                // Simpan data NFC ke dalam form (opsional)
+                document.getElementById('deviceConfigForm').onsubmit = function(event) {
+                    event.preventDefault();
+                    
+                    const ssid = document.getElementById('ssid').value;
+                    const password = document.getElementById('password').value;
+                    const serverUrl = document.getElementById('serverUrl').value;
 
-            // Deteksi kalau tag dilepas
-            ndef.onreading = () => {
-                tagPresent = true;
-                clearTimeout(tagLostTimer);
-                tagLostTimer = setTimeout(() => {
-                    tagPresent = false;
-                }, 500);
-            };
-
-            let tagLostTimer = setTimeout(() => { tagPresent = false; }, 500);
-
-            const payload = JSON.stringify({ ssid, password, deviceName });
-
-            await new Promise(async (resolve, reject) => {
-                const start = Date.now();
-                const writeLoop = async () => {
-                    if (!tagPresent) {
-                        reject("❌ Tag dilepas, penulisan dibatalkan.");
-                        return;
-                    }
-                    try {
-                        await ndef.write(payload);
-                        if (Date.now() - start > 3000) {
-                            resolve();
-                            return;
-                        }
-                        setTimeout(writeLoop, 500);
-                    } catch (err) {
-                        reject("Gagal menulis: " + err);
-                    }
+                    // Kirim data ke server
+                    fetch('http://localhost:3000/save-config', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            nfcUID: tag.id,
+                            ssid: ssid,
+                            password: password,
+                            serverUrl: serverUrl
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert('Konfigurasi berhasil disimpan ke NFC Tag!');
+                    })
+                    .catch(error => console.error('Error:', error));
                 };
-                writeLoop();
-            });
-
-            alert("✅ Konfigurasi berhasil disimpan ke NFC!");
-
-        } catch (error) {
-            alert("⚠ NFC Error: " + error);
+            };
+        } else {
+            document.getElementById('nfcStatus').innerHTML = 'Web NFC tidak didukung oleh browser ini.';
         }
-    } else {
-        alert("Browser ini tidak mendukung Web NFC.");
-    }
-}
-</script>
-
+    </script>
 </body>
 </html>
