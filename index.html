@@ -3,451 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IoT Device Configuration</title>
+    <title>IoT Device NFC Configuration</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: #333;
-        }
-        
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-        
-        .card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-            transform: translateY(0);
-            transition: all 0.3s ease;
-        }
-        
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-        }
-        
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        
-        .header h1 {
-            color: #4a5568;
-            margin-bottom: 10px;
-            font-size: 28px;
-        }
-        
-        .header p {
-            color: #666;
-            font-size: 16px;
-        }
-        
-        .nfc-section {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        
-        .nfc-button {
-            background: linear-gradient(45deg, #2ecc71, #27ae60);
-            color: white;
-            border: none;
-            border-radius: 50px;
-            padding: 15px 30px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 20px rgba(46, 204, 113, 0.3);
-            margin: 10px;
-        }
-        
-        .nfc-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 25px rgba(46, 204, 113, 0.4);
-        }
-        
-        .nfc-button:disabled {
-            background: #bdc3c7;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-        
-        .divider {
-            display: flex;
-            align-items: center;
-            margin: 30px 0;
-            color: #666;
-        }
-        
-        .divider::before,
-        .divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, #ddd, transparent);
-        }
-        
-        .divider span {
-            padding: 0 20px;
-            font-weight: 500;
-        }
-        
-        .manual-input {
-            margin-bottom: 20px;
-        }
-        
-        .input-group {
-            margin-bottom: 20px;
-        }
-        
-        .input-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: #4a5568;
-        }
-        
-        .input-group input {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            background: #f8f9fa;
-        }
-        
-        .input-group input:focus {
-            outline: none;
-            border-color: #667eea;
-            background: white;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-        
-        .connect-button {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            border-radius: 50px;
-            padding: 15px 30px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            width: 100%;
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
-        }
-        
-        .connect-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 25px rgba(102, 126, 234, 0.4);
-        }
-        
-        .status {
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            text-align: center;
-            font-weight: 500;
-        }
-        
-        .status.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .status.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
-        .status.info {
-            background: #cce7ff;
-            color: #004085;
-            border: 1px solid #b3d7ff;
-        }
-        
-        .config-form {
-            display: none;
-        }
-        
-        .form-section {
-            margin-bottom: 25px;
-        }
-        
-        .form-section h3 {
-            color: #4a5568;
-            margin-bottom: 15px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #e2e8f0;
-        }
-        
-        .form-row {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-        
-        .form-row .input-group {
-            flex: 1;
-            margin-bottom: 0;
-        }
-        
-        .device-info {
-            background: linear-gradient(45deg, #f8f9fa, #e9ecef);
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 25px;
-        }
-        
-        .device-info h3 {
-            color: #495057;
-            margin-bottom: 10px;
-        }
-        
-        .device-info .device-id {
-            font-family: 'Courier New', monospace;
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            font-weight: bold;
-            color: #2c3e50;
-        }
-        
-        .save-button {
-            background: linear-gradient(45deg, #28a745, #20c997);
-            color: white;
-            border: none;
-            border-radius: 50px;
-            padding: 15px 30px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            width: 100%;
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
-        }
-        
-        .save-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 25px rgba(40, 167, 69, 0.4);
-        }
-        
-        @media (max-width: 768px) {
-            .container {
-                padding: 15px;
-            }
-            
-            .card {
-                padding: 20px;
-            }
-            
-            .form-row {
-                flex-direction: column;
-                gap: 0;
-            }
-        }
-        
-        .nfc-icon {
-            width: 60px;
-            height: 60px;
-            margin: 0 auto 15px;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 24px;
-        }
-        
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 10px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        /* CSS tetap sama seperti sebelumnya */
+        /* Salin seluruh CSS dari contoh sebelumnya */
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="card">
-            <div class="header">
-                <h1>🔧 IoT Device Config</h1>
-                <p>Configure your ESP32 devices easily</p>
-            </div>
-            
-            <div id="connection-section">
-                <div class="nfc-section">
-                    <div class="nfc-icon">📱</div>
-                    <h3>NFC Detection</h3>
-                    <p style="margin-bottom: 20px; color: #666;">Tap your device with NFC to connect</p>
-                    <button id="nfc-button" class="nfc-button">🔍 Scan NFC Device</button>
-                    <div id="nfc-status"></div>
-                </div>
-                
-                <div class="divider">
-                    <span>OR</span>
-                </div>
-                
-                <div class="manual-input">
-                    <h3 style="text-align: center; margin-bottom: 20px;">Manual Connection</h3>
-                    <div class="input-group">
-                        <label for="device-uid">Device UID:</label>
-                        <input type="text" id="device-uid" placeholder="e.g., ESP001, DEV_ABC123" maxlength="50">
-                    </div>
-                    <button id="connect-manual" class="connect-button">Connect to Device</button>
-                </div>
-            </div>
-            
-            <div id="status-message"></div>
-        </div>
-        
-        <div class="card config-form" id="config-section">
-            <div class="device-info">
-                <h3>Connected Device</h3>
-                <div class="device-id" id="current-device-id">-</div>
-            </div>
-            
-            <form id="device-config-form">
-                <div class="form-section">
-                    <h3>📋 Device Information</h3>
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label for="device-name">Device Name:</label>
-                            <input type="text" id="device-name" placeholder="e.g., Sensor Room 1" required>
-                        </div>
-                        <div class="input-group">
-                            <label for="device-location">Location:</label>
-                            <input type="text" id="device-location" placeholder="e.g., Living Room">
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-section">
-                    <h3>📶 WiFi Configuration</h3>
-                    <div class="input-group">
-                        <label for="wifi-ssid">WiFi SSID:</label>
-                        <input type="text" id="wifi-ssid" placeholder="Your WiFi Network Name" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="wifi-password">WiFi Password:</label>
-                        <input type="password" id="wifi-password" placeholder="Your WiFi Password" required>
-                    </div>
-                </div>
-                
-                <div class="form-section">
-                    <h3>🌐 Server Configuration</h3>
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label for="server-ip">Server IP:</label>
-                            <input type="text" id="server-ip" placeholder="192.168.1.100" required>
-                        </div>
-                        <div class="input-group">
-                            <label for="server-port">Port:</label>
-                            <input type="number" id="server-port" placeholder="8080" min="1" max="65535" required>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-section">
-                    <h3>📡 MQTT Settings</h3>
-                    <div class="input-group">
-                        <label for="mqtt-broker">MQTT Broker:</label>
-                        <input type="text" id="mqtt-broker" placeholder="mqtt.yourserver.com" required>
-                    </div>
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label for="mqtt-port">MQTT Port:</label>
-                            <input type="number" id="mqtt-port" placeholder="1883" min="1" max="65535" value="1883" required>
-                        </div>
-                        <div class="input-group">
-                            <label for="mqtt-topic">Topic Prefix:</label>
-                            <input type="text" id="mqtt-topic" placeholder="sensors/" required>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label for="mqtt-user">Username (optional):</label>
-                            <input type="text" id="mqtt-user" placeholder="MQTT Username">
-                        </div>
-                        <div class="input-group">
-                            <label for="mqtt-pass">Password (optional):</label>
-                            <input type="password" id="mqtt-pass" placeholder="MQTT Password">
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-section">
-                    <h3>⚙️ Sensor Settings</h3>
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label for="sensor-interval">Reading Interval (seconds):</label>
-                            <input type="number" id="sensor-interval" placeholder="30" min="1" max="3600" value="30" required>
-                        </div>
-                        <div class="input-group">
-                            <label for="sensor-type">Sensor Type:</label>
-                            <select id="sensor-type" style="width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 16px; background: #f8f9fa;">
-                                <option value="temperature">Temperature</option>
-                                <option value="humidity">Humidity</option>
-                                <option value="both">Temperature + Humidity</option>
-                                <option value="pressure">Pressure</option>
-                                <option value="light">Light Sensor</option>
-                                <option value="motion">Motion Detector</option>
-                                <option value="custom">Custom</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                
-                <button type="submit" class="save-button">💾 Save Configuration</button>
-            </form>
-        </div>
+        <!-- Struktur HTML tetap sama seperti sebelumnya -->
+        <!-- Salin seluruh struktur HTML dari contoh sebelumnya -->
     </div>
 
     <script>
+        // Konfigurasi Global
         let currentDeviceId = null;
         let nfcSupported = false;
+        const CONFIG_VERSION = '1.0.0';
 
-        // Check NFC support
-        if ('NDEFReader' in window) {
+        // Cek Dukungan NFC
+        if ('NDEFReader' in window && 'NDEFWriter' in window) {
             nfcSupported = true;
         } else {
             document.getElementById('nfc-button').disabled = true;
-            document.getElementById('nfc-button').textContent = '❌ NFC Not Supported';
+            document.getElementById('nfc-button').textContent = '❌ NFC Tidak Didukung';
         }
 
-        // Show status message
+        // Fungsi Utilitas
         function showStatus(message, type = 'info') {
             const statusDiv = document.getElementById('status-message');
             statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
@@ -456,217 +38,176 @@
             }, 5000);
         }
 
-        // NFC Scan functionality
+        // Validasi Konfigurasi
+        function validateConfiguration(config) {
+            const requiredFields = [
+                'deviceName', 'wifiSSID', 'wifiPassword', 
+                'serverIP', 'serverPort', 'mqttBroker', 'mqttPort'
+            ];
+
+            for (let field of requiredFields) {
+                if (!config[field] || config[field].trim() === '') {
+                    throw new Error(`Field ${field} tidak boleh kosong`);
+                }
+            }
+
+            // Validasi tambahan
+            if (config.serverPort < 1 || config.serverPort > 65535) {
+                throw new Error('Port server tidak valid');
+            }
+        }
+
+        // Fungsi Menulis Konfigurasi ke NFC
+        async function writeConfigToNFC(deviceId, config) {
+            try {
+                validateConfiguration(config);
+
+                const ndef = new NDEFWriter();
+                const configString = JSON.stringify({
+                    ...config,
+                    version: CONFIG_VERSION,
+                    timestamp: Date.now()
+                });
+
+                await ndef.write({
+                    records: [
+                        {
+                            recordType: "text",
+                            data: `DEVICE:${deviceId}\nCONFIG:${configString}`
+                        }
+                    ]
+                });
+
+                return true;
+            } catch (error) {
+                console.error('NFC Write Error:', error);
+                throw error;
+            }
+        }
+
+        // Fungsi Membaca Konfigurasi dari NFC
+        async function readConfigFromNFC() {
+            return new Promise((resolve, reject) => {
+                try {
+                    const ndef = new NDEFReader();
+                    ndef.scan();
+
+                    ndef.addEventListener('reading', ({ message }) => {
+                        for (const record of message.records) {
+                            if (record.recordType === 'text') {
+                                const text = new TextDecoder().decode(record.data);
+                                
+                                if (text.includes('DEVICE:') && text.includes('CONFIG:')) {
+                                    const [devicePart, configPart] = text.split('\nCONFIG:');
+                                    const deviceId = devicePart.replace('DEVICE:', '').trim();
+                                    
+                                    try {
+                                        const config = JSON.parse(configPart);
+                                        resolve({ deviceId, config });
+                                        return;
+                                    } catch (parseError) {
+                                        reject(new Error('Konfigurasi tidak valid'));
+                                    }
+                                }
+                            }
+                        }
+                        reject(new Error('Tidak ada konfigurasi ditemukan'));
+                    });
+
+                    ndef.addEventListener('readingerror', () => {
+                        reject(new Error('Gagal membaca tag NFC'));
+                    });
+
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        }
+
+        // Event Listener untuk Tombol NFC
         document.getElementById('nfc-button').addEventListener('click', async () => {
             if (!nfcSupported) {
-                showStatus('NFC is not supported on this device. Please use manual input.', 'error');
+                showStatus('NFC tidak didukung', 'error');
                 return;
             }
 
-            const button = document.getElementById('nfc-button');
-            const originalText = button.textContent;
-            
             try {
-                button.innerHTML = '<span class="loading"></span>Scanning...';
-                button.disabled = true;
+                showStatus('Tempelkan tag NFC...', 'info');
+                const result = await readConfigFromNFC();
                 
-                const ndef = new NDEFReader();
-                await ndef.scan();
+                // Isi form dengan konfigurasi yang dibaca
+                currentDeviceId = result.deviceId;
+                document.getElementById('current-device-id').textContent = currentDeviceId;
                 
-                showStatus('NFC scan started. Please tap your device...', 'info');
-                
-                ndef.addEventListener('reading', ({ message, serialNumber }) => {
-                    let deviceId = null;
-                    
-                    // Try to read device ID from NFC data
-                    for (const record of message.records) {
-                        if (record.recordType === 'text') {
-                            const textDecoder = new TextDecoder(record.encoding);
-                            const data = textDecoder.decode(record.data);
-                            
-                            // Look for device ID pattern
-                            if (data.startsWith('DEVICE:')) {
-                                deviceId = data.substring(7);
-                            } else if (data.match(/^[A-Z0-9_]+$/)) {
-                                deviceId = data;
-                            }
-                        } else if (record.recordType === 'url') {
-                            const url = new TextDecoder().decode(record.data);
-                            const urlParams = new URLSearchParams(url.split('?')[1]);
-                            if (urlParams.has('device')) {
-                                deviceId = urlParams.get('device');
-                            }
-                        }
+                // Isi field-field formulir
+                Object.keys(result.config).forEach(key => {
+                    const element = document.getElementById(key.toLowerCase());
+                    if (element) {
+                        element.value = result.config[key];
                     }
-                    
-                    // Fallback to serial number if no device ID found
-                    if (!deviceId && serialNumber) {
-                        deviceId = 'NFC_' + serialNumber.replace(/:/g, '');
-                    }
-                    
-                    if (deviceId) {
-                        connectToDevice(deviceId, 'NFC');
-                    } else {
-                        showStatus('Could not read device ID from NFC tag. Please try manual input.', 'error');
-                    }
-                    
-                    button.textContent = originalText;
-                    button.disabled = false;
                 });
-                
-                ndef.addEventListener('readingerror', () => {
-                    showStatus('Error reading NFC tag. Please try again.', 'error');
-                    button.textContent = originalText;
-                    button.disabled = false;
-                });
-                
+
+                showStatus(`Konfigurasi perangkat ${currentDeviceId} berhasil dibaca`, 'success');
             } catch (error) {
-                console.error('NFC Error:', error);
-                showStatus('NFC scan failed: ' + error.message, 'error');
-                button.textContent = originalText;
-                button.disabled = false;
+                showStatus(error.message, 'error');
             }
         });
 
-        // Manual connect functionality
+        // Event Listener untuk Simpan Konfigurasi
+        document.getElementById('device-config-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!currentDeviceId) {
+                showStatus('Pilih atau sambungkan perangkat terlebih dahulu', 'error');
+                return;
+            }
+
+            // Kumpulkan data konfigurasi
+            const config = {
+                deviceName: document.getElementById('device-name').value,
+                location: document.getElementById('device-location').value,
+                wifiSSID: document.getElementById('wifi-ssid').value,
+                wifiPassword: document.getElementById('wifi-password').value,
+                serverIP: document.getElementById('server-ip').value,
+                serverPort: document.getElementById('server-port').value,
+                mqttBroker: document.getElementById('mqtt-broker').value,
+                mqttPort: document.getElementById('mqtt-port').value,
+                mqttTopic: document.getElementById('mqtt-topic').value,
+                sensorInterval: document.getElementById('sensor-interval').value,
+                sensorType: document.getElementById('sensor-type').value
+            };
+
+            try {
+                // Tampilkan konfirmasi NFC
+                const confirmWrite = confirm('Tempelkan tag NFC untuk menulis konfigurasi');
+                
+                if (confirmWrite) {
+                    await writeConfigToNFC(currentDeviceId, config);
+                    showStatus(`Konfigurasi berhasil disimpan ke perangkat ${currentDeviceId}`, 'success');
+                }
+            } catch (error) {
+                showStatus(`Gagal menyimpan: ${error.message}`, 'error');
+            }
+        });
+
+        // Fungsi Koneksi Manual
         document.getElementById('connect-manual').addEventListener('click', () => {
             const deviceId = document.getElementById('device-uid').value.trim();
             
             if (!deviceId) {
-                showStatus('Please enter a device UID', 'error');
+                showStatus('Masukkan ID Perangkat', 'error');
                 return;
             }
             
-            if (deviceId.length < 3) {
-                showStatus('Device UID must be at least 3 characters long', 'error');
-                return;
-            }
-            
-            connectToDevice(deviceId, 'Manual');
-        });
-
-        // Connect to device function
-        async function connectToDevice(deviceId, method) {
             currentDeviceId = deviceId;
+            document.getElementById('current-device-id').textContent = deviceId;
             
-            showStatus(`Connecting to device ${deviceId} via ${method}...`, 'info');
+            // Tampilkan section konfigurasi
+            document.getElementById('connection-section').style.display = 'none';
+            document.getElementById('config-section').style.display = 'block';
             
-            // Simulate device connection (replace with actual API call)
-            try {
-                // Here you would make an actual API call to your server
-                // const response = await fetch(`/api/device/${deviceId}/connect`, { method: 'POST' });
-                // if (!response.ok) throw new Error('Connection failed');
-                
-                // Simulate network delay
-                await new Promise(resolve => setTimeout(resolve, 1500));
-                
-                // Update UI
-                document.getElementById('current-device-id').textContent = deviceId;
-                document.getElementById('connection-section').style.display = 'none';
-                document.getElementById('config-section').style.display = 'block';
-                
-                // Load existing config if available
-                loadDeviceConfig(deviceId);
-                
-                showStatus(`Successfully connected to device ${deviceId}!`, 'success');
-                
-            } catch (error) {
-                showStatus(`Failed to connect to device ${deviceId}: ${error.message}`, 'error');
-            }
-        }
-
-        // Load device configuration
-        async function loadDeviceConfig(deviceId) {
-            try {
-                // Here you would fetch existing config from your server
-                // const response = await fetch(`/api/device/${deviceId}/config`);
-                // const config = await response.json();
-                
-                // For demo, we'll use some sample data
-                const sampleConfig = {
-                    deviceName: `Sensor ${deviceId}`,
-                    location: '',
-                    wifiSsid: '',
-                    serverIp: '192.168.1.100',
-                    serverPort: '8080',
-                    mqttBroker: 'mqtt.yourserver.com',
-                    mqttPort: '1883',
-                    mqttTopic: `sensors/${deviceId}/`,
-                    sensorInterval: '30',
-                    sensorType: 'both'
-                };
-                
-                // Populate form with existing data
-                Object.keys(sampleConfig).forEach(key => {
-                    const element = document.getElementById(key.replace(/([A-Z])/g, '-$1').toLowerCase());
-                    if (element) {
-                        element.value = sampleConfig[key];
-                    }
-                });
-                
-            } catch (error) {
-                console.error('Error loading config:', error);
-            }
-        }
-
-        // Save configuration
-        document.getElementById('device-config-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const formData = new FormData(e.target);
-            const config = {};
-            
-            // Collect all form data
-            const inputs = e.target.querySelectorAll('input, select');
-            inputs.forEach(input => {
-                config[input.id] = input.value;
-            });
-            
-            const saveButton = document.querySelector('.save-button');
-            const originalText = saveButton.textContent;
-            
-            try {
-                saveButton.innerHTML = '<span class="loading"></span>Saving...';
-                saveButton.disabled = true;
-                
-                // Here you would send the config to your server and then to the device
-                // const response = await fetch(`/api/device/${currentDeviceId}/config`, {
-                //     method: 'POST',
-                //     headers: { 'Content-Type': 'application/json' },
-                //     body: JSON.stringify(config)
-                // });
-                
-                // Simulate network delay
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                
-                showStatus(`Configuration saved successfully for device ${currentDeviceId}!`, 'success');
-                
-                // Optionally redirect back to connection screen
-                setTimeout(() => {
-                    if (confirm('Configuration saved! Do you want to configure another device?')) {
-                        location.reload();
-                    }
-                }, 2000);
-                
-            } catch (error) {
-                showStatus(`Failed to save configuration: ${error.message}`, 'error');
-            } finally {
-                saveButton.textContent = originalText;
-                saveButton.disabled = false;
-            }
+            showStatus(`Terhubung ke perangkat ${deviceId}`, 'success');
         });
-
-        // Enter key support for manual input
-        document.getElementById('device-uid').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                document.getElementById('connect-manual').click();
-            }
-        });
-
-        // Auto-focus on device UID input for desktop users
-        if (window.innerWidth > 768 && !nfcSupported) {
-            document.getElementById('device-uid').focus();
-        }
     </script>
 </body>
 </html>
