@@ -1,735 +1,388 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IoT Device Configuration</title>
+    <title>Konfigurasi Device IoT</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .nfc-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            color: white;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            font-weight: bold;
+        }
+
+        .status.waiting {
+            background: #e3f2fd;
+            color: #1976d2;
+            border: 2px solid #bbdefb;
+        }
+
+        .status.connected {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border: 2px solid #a5d6a7;
+        }
+
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 2px solid #ef9a9a;
+        }
+
+        .config-form {
+            display: none;
+            text-align: left;
+            margin-top: 20px;
+        }
+
+        .config-form.show {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
             color: #333;
         }
-        
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-        
-        .card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-            transform: translateY(0);
-            transition: all 0.3s ease;
-        }
-        
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-        }
-        
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        
-        .header h1 {
-            color: #4a5568;
-            margin-bottom: 10px;
-            font-size: 28px;
-        }
-        
-        .header p {
-            color: #666;
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
             font-size: 16px;
+            transition: border-color 0.3s;
         }
-        
-        .nfc-section {
-            text-align: center;
-            margin-bottom: 30px;
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
         }
-        
-        .nfc-button {
-            background: linear-gradient(45deg, #2ecc71, #27ae60);
+
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
             border: none;
-            border-radius: 50px;
             padding: 15px 30px;
+            border-radius: 25px;
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 20px rgba(46, 204, 113, 0.3);
-            margin: 10px;
+            transition: all 0.3s;
+            width: 100%;
+            margin-top: 20px;
         }
-        
-        .nfc-button:hover {
+
+        .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 12px 25px rgba(46, 204, 113, 0.4);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
         }
-        
-        .nfc-button:disabled {
-            background: #bdc3c7;
+
+        .btn:disabled {
+            background: #ccc;
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
         }
-        
-        .divider {
-            display: flex;
-            align-items: center;
-            margin: 30px 0;
-            color: #666;
-        }
-        
-        .divider::before,
-        .divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, #ddd, transparent);
-        }
-        
-        .divider span {
-            padding: 0 20px;
-            font-weight: 500;
-        }
-        
-        .manual-input {
-            margin-bottom: 20px;
-        }
-        
-        .input-group {
-            margin-bottom: 20px;
-        }
-        
-        .input-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: #4a5568;
-        }
-        
-        .input-group input, .input-group select {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 16px;
-            transition: all 0.3s ease;
+
+        .instructions {
             background: #f8f9fa;
-        }
-        
-        .input-group input:focus, .input-group select:focus {
-            outline: none;
-            border-color: #667eea;
-            background: white;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-        
-        .connect-button {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            border-radius: 50px;
-            padding: 15px 30px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            width: 100%;
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
-        }
-        
-        .connect-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 25px rgba(102, 126, 234, 0.4);
-        }
-        
-        .status {
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            text-align: center;
-            font-weight: 500;
-        }
-        
-        .status.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .status.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
-        .status.info {
-            background: #cce7ff;
-            color: #004085;
-            border: 1px solid #b3d7ff;
-        }
-        
-        .config-form {
-            display: none;
-        }
-        
-        .form-section {
-            margin-bottom: 25px;
-        }
-        
-        .form-section h3 {
-            color: #4a5568;
-            margin-bottom: 15px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #e2e8f0;
-        }
-        
-        .form-row {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-        
-        .form-row .input-group {
-            flex: 1;
-            margin-bottom: 0;
-        }
-        
-        .device-info {
-            background: linear-gradient(45deg, #f8f9fa, #e9ecef);
             padding: 20px;
             border-radius: 10px;
-            margin-bottom: 25px;
+            margin-top: 20px;
+            border-left: 4px solid #667eea;
         }
-        
-        .device-info h3 {
-            color: #495057;
+
+        .instructions h3 {
+            color: #333;
             margin-bottom: 10px;
         }
-        
-        .device-info .device-id {
-            font-family: 'Courier New', monospace;
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            font-weight: bold;
-            color: #2c3e50;
-        }
-        
-        .save-button {
-            background: linear-gradient(45deg, #28a745, #20c997);
-            color: white;
-            border: none;
-            border-radius: 50px;
-            padding: 15px 30px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            width: 100%;
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
-        }
-        
-        .save-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 25px rgba(40, 167, 69, 0.4);
-        }
-        
-        @media (max-width: 768px) {
-            .container {
-                padding: 15px;
-            }
-            
-            .card {
-                padding: 20px;
-            }
-            
-            .form-row {
-                flex-direction: column;
-                gap: 0;
-            }
-        }
-        
-        .nfc-icon {
-            width: 60px;
-            height: 60px;
-            margin: 0 auto 15px;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 24px;
-        }
-        
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 10px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+
+        .instructions ul {
+            text-align: left;
+            color: #666;
         }
 
-        /* Enhanced features */
-        .qr-camera {
-            width: 100%;
-            max-width: 300px;
-            height: 300px;
-            border: 2px solid #667eea;
-            border-radius: 10px;
-            margin: 20px auto;
-            display: none;
-            background: #f8f9fa;
-        }
-
-        .wifi-scan {
-            background: linear-gradient(45deg, #3498db, #2980b9);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 8px 15px;
-            font-size: 14px;
-            cursor: pointer;
-            margin-left: 10px;
-        }
-
-        .wifi-scan:hover {
-            background: linear-gradient(45deg, #2980b9, #3498db);
-        }
-
-        .validation-error {
-            color: #e74c3c;
-            font-size: 14px;
-            margin-top: 5px;
-        }
-
-        .config-preview {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 20px 0;
-            display: none;
-        }
-
-        .config-preview h4 {
-            margin-bottom: 10px;
-            color: #495057;
-        }
-
-        .config-preview pre {
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 12px;
-            overflow-x: auto;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 4px;
-            background: #e9ecef;
-            border-radius: 2px;
-            overflow: hidden;
-            margin: 15px 0;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(45deg, #28a745, #20c997);
-            transition: width 0.3s ease;
-            width: 0%;
+        .instructions li {
+            margin-bottom: 8px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="card">
-            <div class="header">
-                <h1>🔧 IoT Device Config</h1>
-                <p>Configure your ESP32 devices easily</p>
-            </div>
-            
-            <div id="connection-section">
-                <div class="nfc-section">
-                    <div class="nfc-icon">📱</div>
-                    <h3>NFC Detection</h3>
-                    <p style="margin-bottom: 15px; color: #666;">Tap your NFC-enabled device to connect</p>
-                    <div style="margin-bottom: 15px;">
-                        <small style="color: #888;">
-                            📋 Requirements: HTTPS + Chrome Browser (Android)<br>
-                            🔧 Make sure NFC is enabled in your phone settings
-                        </small>
-                    </div>
-                    <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                        <button id="nfc-button" class="nfc-button">🔍 Read NFC Tag</button>
-                        <button id="nfc-write-button" class="nfc-button" style="background: linear-gradient(45deg, #e74c3c, #c0392b);">✏️ Write NFC Tag</button>
-                    </div>
-                    <div id="nfc-status"></div>
-                    
-                    <!-- NFC Write Modal -->
-                    <div id="nfc-write-modal" style="display: none; margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 10px; border: 2px solid #e9ecef;">
-                        <h4 style="margin-bottom: 15px; color: #495057;">Write to NFC Tag</h4>
-                        <div class="input-group" style="margin-bottom: 15px;">
-                            <label for="nfc-device-id">Device ID to Write:</label>
-                            <input type="text" id="nfc-device-id" placeholder="e.g., ESP001" maxlength="20" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
-                        </div>
-                        <div class="input-group" style="margin-bottom: 15px;">
-                            <label for="nfc-write-type">Write Format:</label>
-                            <select id="nfc-write-type" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
-                                <option value="text">Text Record (DEVICE:ESP001)</option>
-                                <option value="url">URL Record (with device parameter)</option>
-                                <option value="json">JSON Record (with deviceId)</option>
-                            </select>
-                        </div>
-                        <div style="display: flex; gap: 10px;">
-                            <button id="nfc-write-confirm" class="nfc-button" style="flex: 1; background: linear-gradient(45deg, #27ae60, #2ecc71);">💾 Write Now</button>
-                            <button id="nfc-write-cancel" class="nfc-button" style="flex: 1; background: linear-gradient(45deg, #95a5a6, #7f8c8d);">❌ Cancel</button>
-                        </div>
-                    </div>
-                    
-                    <!-- Debug info for troubleshooting -->
-                    <div style="margin-top: 15px; font-size: 12px; color: #666;">
-                        <div>Protocol: <span id="protocol-info"></span></div>
-                        <div>Browser: <span id="browser-info"></span></div>
-                        <div>NFC API: <span id="nfc-api-info"></span></div>
-                        <div>NFC Write: <span id="nfc-write-info"></span></div>
-                    </div>
-                </div>
-                
-                <div class="divider">
-                    <span>OR</span>
-                </div>
-                
-                <div class="qr-section" style="text-align: center; margin-bottom: 20px;">
-                    <h3>📷 QR Code Scanner</h3>
-                    <p style="margin-bottom: 15px; color: #666;">Scan QR code on your device</p>
-                    <button id="qr-button" class="nfc-button">📱 Scan QR Code</button>
-                    <video id="qr-camera" class="qr-camera" autoplay></video>
-                    <canvas id="qr-canvas" style="display: none;"></canvas>
-                </div>
-                
-                <div class="divider">
-                    <span>OR</span>
-                </div>
-                
-                <div class="manual-input">
-                    <h3 style="text-align: center; margin-bottom: 20px;">Manual Connection</h3>
-                    <div class="input-group">
-                        <label for="device-uid">Device UID:</label>
-                        <input type="text" id="device-uid" placeholder="e.g., ESP001, DEV_ABC123" maxlength="50">
-                    </div>
-                    <button id="connect-manual" class="connect-button">Connect to Device</button>
-                </div>
-            </div>
-            
-            <div id="status-message"></div>
-        </div>
+        <h1>Konfigurasi Device IoT</h1>
         
-        <div class="card config-form" id="config-section">
-            <div class="device-info">
-                <h3>Connected Device</h3>
-                <div class="device-id" id="current-device-id">-</div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="config-progress"></div>
-                </div>
-            </div>
-            
-            <form id="device-config-form">
-                <div class="form-section">
-                    <h3>📋 Device Information</h3>
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label for="device-name">Device Name:</label>
-                            <input type="text" id="device-name" placeholder="e.g., Sensor Room 1" required>
-                            <div class="validation-error" id="device-name-error"></div>
-                        </div>
-                        <div class="input-group">
-                            <label for="device-location">Location:</label>
-                            <input type="text" id="device-location" placeholder="e.g., Living Room">
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-section">
-                    <h3>📶 WiFi Configuration</h3>
-                    <div class="input-group">
-                        <label for="wifi-ssid">WiFi SSID:</label>
-                        <div style="display: flex; align-items: center;">
-                            <input type="text" id="wifi-ssid" placeholder="Your WiFi Network Name" required style="flex: 1;">
-                            <button type="button" class="wifi-scan" id="wifi-scan-btn">🔍 Scan</button>
-                        </div>
-                        <div class="validation-error" id="wifi-ssid-error"></div>
-                        <select id="wifi-networks" style="display: none; width: 100%; margin-top: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
-                            <option value="">Select detected network...</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label for="wifi-password">WiFi Password:</label>
-                        <input type="password" id="wifi-password" placeholder="Your WiFi Password" required>
-                        <div class="validation-error" id="wifi-password-error"></div>
-                    </div>
-                </div>
-                
-                <div class="form-section">
-                    <h3>🌐 Server Configuration</h3>
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label for="server-ip">Server IP:</label>
-                            <input type="text" id="server-ip" placeholder="192.168.1.100" required pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$">
-                            <div class="validation-error" id="server-ip-error"></div>
-                        </div>
-                        <div class="input-group">
-                            <label for="server-port">Port:</label>
-                            <input type="number" id="server-port" placeholder="8080" min="1" max="65535" required>
-                            <div class="validation-error" id="server-port-error"></div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-section">
-                    <h3>📡 MQTT Settings</h3>
-                    <div class="input-group">
-                        <label for="mqtt-broker">MQTT Broker:</label>
-                        <input type="text" id="mqtt-broker" placeholder="mqtt.yourserver.com" required>
-                        <div class="validation-error" id="mqtt-broker-error"></div>
-                    </div>
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label for="mqtt-port">MQTT Port:</label>
-                            <input type="number" id="mqtt-port" placeholder="1883" min="1" max="65535" value="1883" required>
-                        </div>
-                        <div class="input-group">
-                            <label for="mqtt-topic">Topic Prefix:</label>
-                            <input type="text" id="mqtt-topic" placeholder="sensors/" required>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label for="mqtt-user">Username (optional):</label>
-                            <input type="text" id="mqtt-user" placeholder="MQTT Username">
-                        </div>
-                        <div class="input-group">
-                            <label for="mqtt-pass">Password (optional):</label>
-                            <input type="password" id="mqtt-pass" placeholder="MQTT Password">
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-section">
-                    <h3>⚙️ Sensor Settings</h3>
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label for="sensor-interval">Reading Interval (seconds):</label>
-                            <input type="number" id="sensor-interval" placeholder="30" min="1" max="3600" value="30" required>
-                        </div>
-                        <div class="input-group">
-                            <label for="sensor-type">Sensor Type:</label>
-                            <select id="sensor-type">
-                                <option value="temperature">Temperature</option>
-                                <option value="humidity">Humidity</option>
-                                <option value="both">Temperature + Humidity</option>
-                                <option value="pressure">Pressure</option>
-                                <option value="light">Light Sensor</option>
-                                <option value="motion">Motion Detector</option>
-                                <option value="custom">Custom</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
+        <div class="nfc-icon">
+            📱
+        </div>
 
-                <!-- Configuration Preview -->
-                <div class="config-preview" id="config-preview">
-                    <h4>Configuration Preview</h4>
-                    <pre id="config-json"></pre>
-                    <button type="button" id="toggle-preview" style="background: #6c757d; color: white; border: none; padding: 5px 10px; border-radius: 3px; font-size: 12px;">Hide Preview</button>
-                </div>
-                
-                <button type="submit" class="save-button">💾 Save Configuration</button>
-                
-                <!-- Enhanced actions -->
-                <div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button type="button" id="save-to-nfc" class="nfc-button" style="flex: 1; background: linear-gradient(45deg, #f39c12, #e67e22);">
-                        📱 Write Config to NFC Tag
-                    </button>
-                    <button type="button" id="export-config" class="nfc-button" style="flex: 1; background: linear-gradient(45deg, #9b59b6, #8e44ad);">
-                        💾 Export Config
-                    </button>
-                    <button type="button" id="test-connection" class="nfc-button" style="flex: 1; background: linear-gradient(45deg, #3498db, #2980b9);">
-                        🔧 Test Connection
-                    </button>
-                </div>
-                <p style="font-size: 12px; color: #666; margin-top: 8px; text-align: center;">
-                    Additional configuration options and device testing
-                </p>
-            </form>
+        <div id="status" class="status waiting">
+            Tempel HP ke NFC tag device untuk mulai konfigurasi
+        </div>
+
+        <button id="startNfc" class="btn">Mulai Deteksi NFC</button>
+
+        <div id="configForm" class="config-form">
+            <h3 style="margin-bottom: 20px; color: #333;">Pengaturan Device</h3>
+            
+            <div class="form-group">
+                <label for="deviceId">Device ID:</label>
+                <input type="text" id="deviceId" placeholder="Masukkan ID unik device">
+            </div>
+
+            <div class="form-group">
+                <label for="deviceName">Nama Device:</label>
+                <input type="text" id="deviceName" placeholder="Contoh: Sensor Ruang 1">
+            </div>
+
+            <div class="form-group">
+                <label for="wifiSSID">WiFi SSID:</label>
+                <input type="text" id="wifiSSID" placeholder="Nama WiFi">
+            </div>
+
+            <div class="form-group">
+                <label for="wifiPassword">WiFi Password:</label>
+                <input type="password" id="wifiPassword" placeholder="Password WiFi">
+            </div>
+
+            <div class="form-group">
+                <label for="serverUrl">Server URL:</label>
+                <input type="text" id="serverUrl" placeholder="http://192.168.1.100:8080" value="http://192.168.1.100:8080">
+            </div>
+
+            <div class="form-group">
+                <label for="serverPort">Server Port:</label>
+                <input type="number" id="serverPort" placeholder="8080" value="8080">
+            </div>
+
+            <div class="form-group">
+                <label for="sensorType">Tipe Sensor:</label>
+                <select id="sensorType">
+                    <option value="temperature">Temperature (DHT22)</option>
+                    <option value="humidity">Humidity (DHT22)</option>
+                    <option value="both">Temperature & Humidity</option>
+                    <option value="motion">Motion (PIR)</option>
+                    <option value="light">Light (LDR)</option>
+                    <option value="custom">Custom</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="sendInterval">Interval Kirim Data (detik):</label>
+                <input type="number" id="sendInterval" placeholder="30" value="30" min="5" max="3600">
+            </div>
+
+            <button id="saveConfig" class="btn">Simpan Konfigurasi ke NFC</button>
+        </div>
+
+        <div class="instructions">
+            <h3>Instruksi Penggunaan:</h3>
+            <ul>
+                <li>Pastikan HP mendukung NFC dan sudah diaktifkan</li>
+                <li>Tempel HP ke NFC tag pada device</li>
+                <li>Isi konfigurasi yang diperlukan</li>
+                <li>Tekan "Simpan Konfigurasi ke NFC"</li>
+                <li>Device akan otomatis restart dan terhubung ke server</li>
+            </ul>
         </div>
     </div>
 
     <script>
-        let currentDeviceId = null;
         let nfcSupported = false;
-        let qrScanner = null;
+        let nfcReader = null;
 
-        // Enhanced NFC support check
-        function checkNFCSupport() {
-            if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-                document.getElementById('nfc-button').disabled = true;
-                document.getElementById('nfc-write-button').disabled = true;
-                document.getElementById('nfc-button').textContent = '🔒 HTTPS Required';
-                document.getElementById('nfc-write-button').textContent = '🔒 HTTPS Required';
-                showStatus('NFC requires HTTPS connection. Please access via https://', 'error');
-                return false;
+        // Check NFC support
+        if ('NDEFReader' in window) {
+            nfcSupported = true;
+        }
+
+        const statusDiv = document.getElementById('status');
+        const startNfcBtn = document.getElementById('startNfc');
+        const configForm = document.getElementById('configForm');
+        const saveConfigBtn = document.getElementById('saveConfig');
+
+        // Update status
+        function updateStatus(message, type = 'waiting') {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        // Generate random device ID
+        function generateDeviceId() {
+            return 'DEV_' + Math.random().toString(36).substr(2, 8).toUpperCase();
+        }
+
+        // Start NFC detection
+        startNfcBtn.addEventListener('click', async () => {
+            if (!nfcSupported) {
+                updateStatus('NFC tidak didukung pada browser ini', 'error');
+                return;
             }
-            
-            if ('NDEFReader' in window) {
-                nfcSupported = true;
-                return true;
-            } else {
-                const isChrome = /Chrome/.test(navigator.userAgent);
-                const isAndroid = /Android/.test(navigator.userAgent);
+
+            try {
+                nfcReader = new NDEFReader();
                 
-                if (isAndroid && !isChrome) {
-                    document.getElementById('nfc-button').disabled = true;
-                    document.getElementById('nfc-write-button').disabled = true;
-                    document.getElementById('nfc-button').textContent = '📱 Use Chrome';
-                    document.getElementById('nfc-write-button').textContent = '📱 Use Chrome';
-                    showStatus('NFC Web API only works in Chrome browser on Android', 'info');
-                } else {
-                    document.getElementById('nfc-button').disabled = true;
-                    document.getElementById('nfc-write-button').disabled = true;
-                    document.getElementById('nfc-button').textContent = '❌ Not Supported';
-                    document.getElementById('nfc-write-button').textContent = '❌ Not Supported';
-                    showStatus('NFC Web API not supported on this device/browser', 'info');
-                }
-                return false;
-            }
-        }
-        
-        checkNFCSupport();
-        
-        // Display debug info
-        document.getElementById('protocol-info').textContent = location.protocol;
-        document.getElementById('browser-info').textContent = navigator.userAgent.split(' ').pop();
-        document.getElementById('nfc-api-info').textContent = 'NDEFReader' in window ? '✅ Available' : '❌ Not Available';
-        document.getElementById('nfc-write-info').textContent = nfcSupported ? '✅ Supported' : '❌ Not Supported';
+                startNfcBtn.textContent = 'Mendeteksi NFC...';
+                startNfcBtn.disabled = true;
+                
+                await nfcReader.scan();
+                updateStatus('Siap! Tempel HP ke NFC tag device', 'waiting');
 
-        // Show status message
-        function showStatus(message, type = 'info') {
-            const statusDiv = document.getElementById('status-message');
-            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
-            setTimeout(() => {
-                statusDiv.innerHTML = '';
-            }, 5000);
-        }
+                // Listen for NFC reads
+                nfcReader.addEventListener('reading', event => {
+                    updateStatus('NFC tag terdeteksi! Device terhubung', 'connected');
+                    configForm.classList.add('show');
+                    
+                    // Auto-generate device ID if empty
+                    if (!document.getElementById('deviceId').value) {
+                        document.getElementById('deviceId').value = generateDeviceId();
+                    }
 
-        // Form validation
-        function validateField(fieldId, validator, errorMessage) {
-            const field = document.getElementById(fieldId);
-            const errorDiv = document.getElementById(fieldId + '-error');
-            
-            if (!validator(field.value)) {
-                errorDiv.textContent = errorMessage;
-                field.style.borderColor = '#e74c3c';
-                return false;
-            } else {
-                errorDiv.textContent = '';
-                field.style.borderColor = '#e2e8f0';
-                return true;
-            }
-        }
-
-        // Real-time validation
-        function setupValidation() {
-            const validations = [
-                {
-                    field: 'device-name',
-                    validator: (value) => value.length >= 2,
-                    message: 'Device name must be at least 2 characters'
-                },
-                {
-                    field: 'wifi-ssid',
-                    validator: (value) => value.length >= 1,
-                    message: 'WiFi SSID is required'
-                },
-                {
-                    field: 'wifi-password',
-                    validator: (value) => value.length >= 8,
-                    message: 'WiFi password must be at least 8 characters'
-                },
-                {
-                    field: 'server-ip',
-                    validator: (value) => /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(value),
-                    message: 'Please enter a valid IP address'
-                },
-                {
-                    field: 'mqtt-broker',
-                    validator: (value) => value.length >= 1,
-                    message: 'MQTT broker is required'
-                }
-            ];
-
-            validations.forEach(({ field, validator, message }) => {
-                const element = document.getElementById(field);
-                element.addEventListener('blur', () => {
-                    validateField(field, validator, message);
-                    updateConfigPreview();
+                    startNfcBtn.style.display = 'none';
                 });
-                element.addEventListener('input', updateConfigPreview);
-            });
-        }
 
-        // Update configuration preview
-        function updateConfigPreview() {
-            const config = collectFormData();
-            const preview = document.getElementById('config-json');
-            preview.textContent = JSON.stringify(config, null, 2);
+                nfcReader.addEventListener('readingerror', () => {
+                    updateStatus('Error membaca NFC tag', 'error');
+                });
+
+            } catch (error) {
+                console.error('NFC Error:', error);
+                updateStatus('Error: ' + error.message, 'error');
+                startNfcBtn.disabled = false;
+                startNfcBtn.textContent = 'Mulai Deteksi NFC';
+            }
+        });
+
+        // Save configuration to NFC
+        saveConfigBtn.addEventListener('click', async () => {
+            const config = {
+                deviceId: document.getElementById('deviceId').value,
+                deviceName: document.getElementById('deviceName').value,
+                wifiSSID: document.getElementById('wifiSSID').value,
+                wifiPassword: document.getElementById('wifiPassword').value,
+                serverUrl: document.getElementById('serverUrl').value,
+                serverPort: document.getElementById('serverPort').value,
+                sensorType: document.getElementById('sensorType').value,
+                sendInterval: document.getElementById('sendInterval').value,
+                timestamp: new Date().toISOString()
+            };
+
+            // Validate required fields
+            if (!config.deviceId || !config.wifiSSID || !config.serverUrl) {
+                updateStatus('Mohon lengkapi Device ID, WiFi SSID, dan Server URL', 'error');
+                return;
+            }
+
+            try {
+                saveConfigBtn.textContent = 'Menyimpan...';
+                saveConfigBtn.disabled = true;
+
+                if (nfcReader && nfcSupported) {
+                    // Write to NFC tag
+                    await nfcReader.write({
+                        records: [
+                            {
+                                recordType: "text",
+                                data: JSON.stringify(config)
+                            }
+                        ]
+                    });
+
+                    updateStatus('Konfigurasi berhasil disimpan ke NFC tag!', 'connected');
+                    
+                    // Show success message
+                    setTimeout(() => {
+                        updateStatus('Device akan restart dan terhubung ke server', 'connected');
+                    }, 2000);
+
+                } else {
+                    // Fallback: show config data for manual input
+                    updateStatus('Konfigurasi siap (Copy data berikut ke device)', 'connected');
+                    console.log('Config Data:', JSON.stringify(config, null, 2));
+                    alert('Config data telah disimpan. Lihat console untuk data lengkap.');
+                }
+
+            } catch (error) {
+                console.error('Save Error:', error);
+                updateStatus('Error menyimpan konfigurasi: ' + error.message, 'error');
+            } finally {
+                saveConfigBtn.textContent = 'Simpan Konfigurasi ke NFC';
+                saveConfigBtn.disabled = false;
+            }
+        });
+
+        // Show alternative for non-NFC browsers
+        if (!nfcSupported) {
+            updateStatus('Browser tidak mendukung NFC. Gunakan Chrome di Android.', 'error');
+            startNfcBtn.textContent = 'NFC Tidak Tersedia';
+            startNfcBtn.disabled = true;
             
-            // Update progress
-            const completedFields = Object.values(config).filter(v => v !== '').length;
-            const totalFields = Object.keys(config).length;
-            const progress = (completedFields / totalFields) * 100;
-            document.getElementById('config-progress').style.width = `${progress}%`;
+            // Still allow configuration form
+            setTimeout(() => {
+                configForm.classList.add('show');
+                document.getElementById('deviceId').value = generateDeviceId();
+                updateStatus('Mode Manual: Isi konfigurasi lalu salin data', 'waiting');
+            }, 3000);
         }
-
-        // Collect form data
-        function collectFormData() {
-            const config = {};
-            const inputs = document.querySelectorAll('#device-config-form input, #device-config-form select');
-            inputs.forEach(input => {
-                config[input.id.replace(/-/g, '_')] = input.value;
-            });
-            return config;
-        }
-
-        // WiFi Network Scanning (simulated)
-        document.getElementById('wifi-scan-btn').addEventListener('click', async () => {
-            const button = document.getElementByI
+    </script>
+</body>
+</html>
