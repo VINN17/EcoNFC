@@ -6,17 +6,52 @@
     <title>NFC Device Configuration</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            text-align: center;
+            font-family: 'Arial', sans-serif;
+            padding: 0;
+            margin: 0;
+            background-color: #f0f0f5;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            height: 100vh;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #5a2ce3;
+            margin-bottom: 25px;
         }
         button, input, select {
-            margin: 10px;
+            margin: 10px 0;
             padding: 10px;
             font-size: 16px;
+            border: 2px solid #5a2ce3;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+            width: 300px;
+        }
+        button:hover {
+            background-color: #5a2ce3;
+            color: white;
+            cursor: pointer;
+        }
+        input:focus {
+            border-color: #5a2ce3;
+            outline: none;
         }
         .hidden {
             display: none;
+        }
+        #statusMessage {
+            margin-top: 15px;
+            font-weight: bold;
+            color: #5a2ce3;
+        }
+        #message {
+            color: #5a2ce3;
+            margin-top: 10px;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -33,28 +68,28 @@
 <div id="config" class="hidden">
     <h1>Halaman Konfigurasi</h1>
     <label for="nfcId">ID NFC:</label>
-    <input type="text" id="nfcId" readonly><br>
+    <input type="text" id="nfcId" placeholder="Masukkan ID NFC" required><br>
 
     <label for="deviceName">Nama Perangkat:</label>
-    <input type="text" id="deviceName" placeholder="Masukkan Nama Perangkat"><br>
+    <input type="text" id="deviceName" placeholder="Masukkan Nama Perangkat" required><br>
     
     <label for="wifi">SSID WiFi:</label>
-    <input type="text" id="wifi" placeholder="Masukkan SSID WiFi"><br>
+    <input type="text" id="wifi" placeholder="Masukkan SSID WiFi" required><br>
     
     <label for="wifiPassword">Password WiFi:</label>
-    <input type="password" id="wifiPassword" placeholder="Masukkan Password WiFi"><br>
+    <input type="password" id="wifiPassword" placeholder="Masukkan Password WiFi" required><br>
 
     <label for="serverUrl">URL Server:</label>
-    <input type="text" id="serverUrl" placeholder="Masukkan URL Server"><br>
+    <input type="text" id="serverUrl" placeholder="Masukkan URL Server" required><br>
     
     <label for="serverPort">Port Server:</label>
-    <input type="number" id="serverPort" placeholder="Masukkan Port Server"><br>
+    <input type="number" id="serverPort" placeholder="Masukkan Port Server" required><br>
 
     <label for="sensorType">Tipe Sensor:</label>
-    <input type="text" id="sensorType" placeholder="Masukkan Tipe Sensor"><br>
+    <input type="text" id="sensorType" placeholder="Masukkan Tipe Sensor" required><br>
 
     <label for="interval">Interval Kirim Data (detik):</label>
-    <input type="number" id="interval" placeholder="Masukkan Interval Detik"><br>
+    <input type="number" id="interval" placeholder="Masukkan Interval Detik" required><br>
     
     <button id="saveConfig">Simpan Konfigurasi</button>
     <div id="statusMessage"></div>
@@ -108,6 +143,7 @@
     document.getElementById('detectNFC').addEventListener('click', detectNFC);
 
     document.getElementById('saveConfig').addEventListener('click', async () => {
+        const nfcId = document.getElementById('nfcId').value;
         const deviceName = document.getElementById('deviceName').value;
         const wifi = document.getElementById('wifi').value;
         const wifiPassword = document.getElementById('wifiPassword').value;
@@ -116,13 +152,14 @@
         const sensorType = document.getElementById('sensorType').value;
         const interval = document.getElementById('interval').value;
 
-        if (!deviceName || !wifi || !wifiPassword || !serverUrl || !serverPort || !sensorType || !interval) {
+        if (!deviceName || !wifi || !wifiPassword || !serverUrl || !serverPort || !sensorType || !interval || !nfcId) {
             document.getElementById('statusMessage').textContent = "Semua kolom harus diisi!";
             return;
         }
 
         // Buat objek konfigurasi
         const configObject = { 
+            nfcId, 
             deviceName, 
             wifi, 
             wifiPassword, 
@@ -141,6 +178,7 @@
         localStorage.setItem('serverPort', serverPort);
         localStorage.setItem('sensorType', sensorType);
         localStorage.setItem('interval', interval);
+        localStorage.setItem('nfcId', nfcId);
 
         try {
             const ndef = new NDEFReader();
