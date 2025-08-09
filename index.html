@@ -1,158 +1,213 @@
-// Tambahkan variabel global untuk tracking konfigurasi
-let deviceConfig = null;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Device NFC Configuration</title>
+    <style>
+        /* CSS tetap sama seperti sebelumnya */
+        /* Salin seluruh CSS dari contoh sebelumnya */
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Struktur HTML tetap sama seperti sebelumnya -->
+        <!-- Salin seluruh struktur HTML dari contoh sebelumnya -->
+    </div>
 
-// Modifikasi fungsi save configuration
-document.getElementById('device-config-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    // Kumpulkan data konfigurasi
-    const config = {
-        deviceName: document.getElementById('device-name').value,
-        location: document.getElementById('device-location').value,
-        wifiSSID: document.getElementById('wifi-ssid').value,
-        wifiPassword: document.getElementById('wifi-password').value,
-        serverIP: document.getElementById('server-ip').value,
-        serverPort: document.getElementById('server-port').value,
-        mqttBroker: document.getElementById('mqtt-broker').value,
-        mqttPort: document.getElementById('mqtt-port').value,
-        mqttTopic: document.getElementById('mqtt-topic').value,
-        mqttUser: document.getElementById('mqtt-user').value,
-        mqttPass: document.getElementById('mqtt-pass').value,
-        sensorInterval: document.getElementById('sensor-interval').value,
-        sensorType: document.getElementById('sensor-type').value
-    };
+    <script>
+        // Konfigurasi Global
+        let currentDeviceId = null;
+        let nfcSupported = false;
+        const CONFIG_VERSION = '1.0.0';
 
-    const saveButton = document.querySelector('.save-button');
-    const originalText = saveButton.textContent;
-
-    try {
-        saveButton.innerHTML = '<span class="loading"></span>Preparing to Save...';
-        saveButton.disabled = true;
-
-        // Periksa dukungan NFC
-        if (!('NDEFWriter' in window)) {
-            throw new Error('NFC writing not supported on this device');
+        // Cek Dukungan NFC
+        if ('NDEFReader' in window && 'NDEFWriter' in window) {
+            nfcSupported = true;
+        } else {
+            document.getElementById('nfc-button').disabled = true;
+            document.getElementById('nfc-button').textContent = '❌ NFC Tidak Didukung';
         }
 
-        // Tampilkan prompt untuk mendekatkan tag
-        const confirmWrite = confirm('Please tap your NFC device to write configuration');
-        
-        if (confirmWrite) {
-            const ndef = new NDEFWriter();
-            
-            // Konversi konfigurasi menjadi string JSON
-            const configString = JSON.stringify(config);
-            
-            // Tulis konfigurasi ke tag NFC
-            await ndef.write({
-                records: [
-                    {
-                        recordType: "text",
-                        data: `DEVICE:${currentDeviceId}\nCONFIG:${configString}`
-                    }
-                ]
-            });
-
-            // Simpan konfigurasi ke server (simulasi)
-            // Ganti dengan fungsi aktual untuk menyimpan ke backend
-            await simulateSaveToServer(currentDeviceId, config);
-
-            showStatus(`Configuration saved and written to NFC tag for device ${currentDeviceId}!`, 'success');
-            
-            // Redirect atau reset
+        // Fungsi Utilitas
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status-message');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
             setTimeout(() => {
-                if (confirm('Configuration saved! Do you want to configure another device?')) {
-                    location.reload();
-                }
-            }, 2000);
+                statusDiv.innerHTML = '';
+            }, 5000);
         }
-    } catch (error) {
-        console.error('Configuration Save Error:', error);
-        showStatus(`Failed to save configuration: ${error.message}`, 'error');
-    } finally {
-        saveButton.textContent = originalText;
-        saveButton.disabled = false;
-    }
-});
 
-// Fungsi simulasi untuk menyimpan ke server
-async function simulateSaveToServer(deviceId, config) {
-    return new Promise((resolve) => {
-        // Simulasi penyimpanan ke server
-        console.log(`Saving config for device ${deviceId}:`, config);
-        setTimeout(resolve, 1000);
-    });
-}
+        // Validasi Konfigurasi
+        function validateConfiguration(config) {
+            const requiredFields = [
+                'deviceName', 'wifiSSID', 'wifiPassword', 
+                'serverIP', 'serverPort', 'mqttBroker', 'mqttPort'
+            ];
 
-// Modifikasi fungsi NFC scan untuk membaca konfigurasi
-document.getElementById('nfc-button').addEventListener('click', async () => {
-    if (!nfcSupported) {
-        showStatus('NFC is not supported on this device. Please use manual input.', 'error');
-        return;
-    }
+            for (let field of requiredFields) {
+                if (!config[field] || config[field].trim() === '') {
+                    throw new Error(`Field ${field} tidak boleh kosong`);
+                }
+            }
 
-    const button = document.getElementById('nfc-button');
-    const originalText = button.textContent;
-    
-    try {
-        button.innerHTML = '<span class="loading"></span>Scanning...';
-        button.disabled = true;
-        
-        const ndef = new NDEFReader();
-        await ndef.scan();
-        
-        showStatus('NFC scan started. Please tap your device...', 'info');
-        
-        ndef.addEventListener('reading', ({ message, serialNumber }) => {
-            let deviceId = null;
-            let configData = null;
-            
-            // Cari record konfigurasi
-            for (const record of message.records) {
-                if (record.recordType === 'text') {
-                    const textDecoder = new TextDecoder(record.encoding);
-                    const data = textDecoder.decode(record.data);
-                    
-                    // Cek apakah data mengandung konfigurasi
-                    if (data.includes('DEVICE:') && data.includes('CONFIG:')) {
-                        const [devicePart, configPart] = data.split('\nCONFIG:');
-                        deviceId = devicePart.replace('DEVICE:', '').trim();
-                        
-                        try {
-                            configData = JSON.parse(configPart);
-                        } catch (parseError) {
-                            console.error('Failed to parse config:', parseError);
+            // Validasi tambahan
+            if (config.serverPort < 1 || config.serverPort > 65535) {
+                throw new Error('Port server tidak valid');
+            }
+        }
+
+        // Fungsi Menulis Konfigurasi ke NFC
+        async function writeConfigToNFC(deviceId, config) {
+            try {
+                validateConfiguration(config);
+
+                const ndef = new NDEFWriter();
+                const configString = JSON.stringify({
+                    ...config,
+                    version: CONFIG_VERSION,
+                    timestamp: Date.now()
+                });
+
+                await ndef.write({
+                    records: [
+                        {
+                            recordType: "text",
+                            data: `DEVICE:${deviceId}\nCONFIG:${configString}`
                         }
-                        break;
-                    }
-                }
-            }
-            
-            if (deviceId && configData) {
-                connectToDevice(deviceId, 'NFC');
-                populateConfigForm(configData);
-            } else {
-                showStatus('No valid device configuration found on this NFC tag.', 'error');
-            }
-            
-            button.textContent = originalText;
-            button.disabled = false;
-        });
-        
-    } catch (error) {
-        console.error('NFC Error:', error);
-        showStatus('NFC scan failed: ' + error.message, 'error');
-        button.textContent = originalText;
-        button.disabled = false;
-    }
-});
+                    ]
+                });
 
-// Fungsi untuk mengisi form dengan konfigurasi yang dibaca
-function populateConfigForm(config) {
-    Object.keys(config).forEach(key => {
-        const element = document.getElementById(key.replace(/([A-Z])/g, '-$1').toLowerCase());
-        if (element) {
-            element.value = config[key];
+                return true;
+            } catch (error) {
+                console.error('NFC Write Error:', error);
+                throw error;
+            }
         }
-    });
-}
+
+        // Fungsi Membaca Konfigurasi dari NFC
+        async function readConfigFromNFC() {
+            return new Promise((resolve, reject) => {
+                try {
+                    const ndef = new NDEFReader();
+                    ndef.scan();
+
+                    ndef.addEventListener('reading', ({ message }) => {
+                        for (const record of message.records) {
+                            if (record.recordType === 'text') {
+                                const text = new TextDecoder().decode(record.data);
+                                
+                                if (text.includes('DEVICE:') && text.includes('CONFIG:')) {
+                                    const [devicePart, configPart] = text.split('\nCONFIG:');
+                                    const deviceId = devicePart.replace('DEVICE:', '').trim();
+                                    
+                                    try {
+                                        const config = JSON.parse(configPart);
+                                        resolve({ deviceId, config });
+                                        return;
+                                    } catch (parseError) {
+                                        reject(new Error('Konfigurasi tidak valid'));
+                                    }
+                                }
+                            }
+                        }
+                        reject(new Error('Tidak ada konfigurasi ditemukan'));
+                    });
+
+                    ndef.addEventListener('readingerror', () => {
+                        reject(new Error('Gagal membaca tag NFC'));
+                    });
+
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        }
+
+        // Event Listener untuk Tombol NFC
+        document.getElementById('nfc-button').addEventListener('click', async () => {
+            if (!nfcSupported) {
+                showStatus('NFC tidak didukung', 'error');
+                return;
+            }
+
+            try {
+                showStatus('Tempelkan tag NFC...', 'info');
+                const result = await readConfigFromNFC();
+                
+                // Isi form dengan konfigurasi yang dibaca
+                currentDeviceId = result.deviceId;
+                document.getElementById('current-device-id').textContent = currentDeviceId;
+                
+                // Isi field-field formulir
+                Object.keys(result.config).forEach(key => {
+                    const element = document.getElementById(key.toLowerCase());
+                    if (element) {
+                        element.value = result.config[key];
+                    }
+                });
+
+                showStatus(`Konfigurasi perangkat ${currentDeviceId} berhasil dibaca`, 'success');
+            } catch (error) {
+                showStatus(error.message, 'error');
+            }
+        });
+
+        // Event Listener untuk Simpan Konfigurasi
+        document.getElementById('device-config-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!currentDeviceId) {
+                showStatus('Pilih atau sambungkan perangkat terlebih dahulu', 'error');
+                return;
+            }
+
+            // Kumpulkan data konfigurasi
+            const config = {
+                deviceName: document.getElementById('device-name').value,
+                location: document.getElementById('device-location').value,
+                wifiSSID: document.getElementById('wifi-ssid').value,
+                wifiPassword: document.getElementById('wifi-password').value,
+                serverIP: document.getElementById('server-ip').value,
+                serverPort: document.getElementById('server-port').value,
+                mqttBroker: document.getElementById('mqtt-broker').value,
+                mqttPort: document.getElementById('mqtt-port').value,
+                mqttTopic: document.getElementById('mqtt-topic').value,
+                sensorInterval: document.getElementById('sensor-interval').value,
+                sensorType: document.getElementById('sensor-type').value
+            };
+
+            try {
+                // Tampilkan konfirmasi NFC
+                const confirmWrite = confirm('Tempelkan tag NFC untuk menulis konfigurasi');
+                
+                if (confirmWrite) {
+                    await writeConfigToNFC(currentDeviceId, config);
+                    showStatus(`Konfigurasi berhasil disimpan ke perangkat ${currentDeviceId}`, 'success');
+                }
+            } catch (error) {
+                showStatus(`Gagal menyimpan: ${error.message}`, 'error');
+            }
+        });
+
+        // Fungsi Koneksi Manual
+        document.getElementById('connect-manual').addEventListener('click', () => {
+            const deviceId = document.getElementById('device-uid').value.trim();
+            
+            if (!deviceId) {
+                showStatus('Masukkan ID Perangkat', 'error');
+                return;
+            }
+            
+            currentDeviceId = deviceId;
+            document.getElementById('current-device-id').textContent = deviceId;
+            
+            // Tampilkan section konfigurasi
+            document.getElementById('connection-section').style.display = 'none';
+            document.getElementById('config-section').style.display = 'block';
+            
+            showStatus(`Terhubung ke perangkat ${deviceId}`, 'success');
+        });
+    </script>
+</body>
+</html>
