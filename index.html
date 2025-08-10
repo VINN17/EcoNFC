@@ -720,6 +720,17 @@
                     </select>
                 </div>
             </div>
+
+            <div class="form-group">
+                <label for="deviceStatus">⚡ Status Perangkat</label>
+                <select id="deviceStatus" required>
+                    <option value="">Pilih status operasional</option>
+                    <option value="active">🟢 Aktif - Monitoring Berjalan</option>
+                    <option value="inactive">🔴 Non-Aktif - Standby Mode</option>
+                    <option value="maintenance">🟡 Maintenance - Mode Kalibrasi</option>
+                    <option value="testing">🔵 Testing - Mode Pengujian</option>
+                </select>
+            </div>
             
             <button type="submit" id="saveConfig" class="btn btn-primary">
                 🌱 Simpan Konfigurasi ke EcoNFC
@@ -815,6 +826,7 @@
                             document.getElementById('serverPort').value = config.serverPort || '';
                             document.getElementById('sensorType').value = config.sensorType || '';
                             document.getElementById('interval').value = config.interval || '';
+                            document.getElementById('deviceStatus').value = config.deviceStatus || '';
                             
                             showMessage('statusMessage', '✅ Konfigurasi existing berhasil dimuat dari EcoNFC', 'success');
                         } catch (error) {
@@ -868,12 +880,13 @@
                 serverPort: parseInt(document.getElementById('serverPort').value),
                 sensorType: document.getElementById('sensorType').value,
                 interval: parseInt(document.getElementById('interval').value),
+                deviceStatus: document.getElementById('deviceStatus').value,
                 timestamp: new Date().toISOString(),
                 version: '1.0'
             };
 
             // Validasi data
-            const requiredFields = ['deviceName', 'wifi', 'wifiPassword', 'serverUrl', 'serverPort', 'sensorType', 'interval'];
+            const requiredFields = ['deviceName', 'wifi', 'wifiPassword', 'serverUrl', 'serverPort', 'sensorType', 'interval', 'deviceStatus'];
             for (const field of requiredFields) {
                 if (!formData[field]) {
                     showMessage('statusMessage', `❌ Field "${field}" wajib diisi!`, 'error');
@@ -920,7 +933,8 @@
                     📶 WiFi: ${formData.wifi}<br>
                     ☁️ Cloud: ${formData.serverUrl}:${formData.serverPort}<br>
                     🧪 Monitoring: ${document.getElementById('sensorType').selectedOptions[0].textContent}<br>
-                    🔋 Interval: ${formData.interval} detik (Hemat Daya)`, 'success');
+                    🔋 Interval: ${formData.interval} detik<br>
+                    ⚡ Status: ${document.getElementById('deviceStatus').selectedOptions[0].textContent}`, 'success');
 
                 console.log("Konfigurasi tersimpan:", formData);
 
