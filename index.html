@@ -65,35 +65,18 @@
         }
 
         .logo {
-            width: 64px;
-            height: 64px;
-            background: linear-gradient(135deg, #4CAF50, #2E7D32);
-            border-radius: 16px;
+            width: 120px;
+            height: 48px;
             margin: 0 auto 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-size: 24px;
-            font-weight: bold;
-            box-shadow: 0 8px 20px rgba(76, 175, 80, 0.3);
             position: relative;
-            overflow: hidden;
         }
 
-        .logo::before {
-            content: '🌱';
-            position: absolute;
-            font-size: 28px;
-        }
-
-        .logo::after {
-            content: '📡';
-            position: absolute;
-            font-size: 16px;
-            bottom: 4px;
-            right: 4px;
-            opacity: 0.8;
+        .logo svg {
+            width: 100%;
+            height: 100%;
         }
 
         h1 {
@@ -376,8 +359,145 @@
     <!-- Halaman Utama -->
     <div id="home" class="container">
         <div class="header">
-            <div class="logo"></div>
-            <h1>EcoNFC</h1>
+            <div class="logo">
+                <svg viewBox="0 0 300 120" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <!-- Gradients untuk efek modern -->
+                    <linearGradient id="leafGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
+                      <stop offset="100%" style="stop-color:#2E7D32;stop-opacity:1" />
+                    </linearGradient>
+                    
+                    <linearGradient id="techGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" style="stop-color:#2196F3;stop-opacity:1" />
+                      <stop offset="100%" style="stop-color:#1976D2;stop-opacity:1" />
+                    </linearGradient>
+                    
+                    <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" style="stop-color:#2E7D32;stop-opacity:1" />
+                      <stop offset="50%" style="stop-color:#4CAF50;stop-opacity:1" />
+                      <stop offset="100%" style="stop-color:#2196F3;stop-opacity:1" />
+                    </linearGradient>
+                    
+                    <!-- Glow effect -->
+                    <filter id="glow">
+                      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                      <feMerge> 
+                        <feMergeNode in="coloredBlur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                      </feMerge>
+                    </filter>
+                  </defs>
+                  
+                  <!-- Background circle dengan subtle gradient -->
+                  <circle cx="50" cy="60" r="45" fill="url(#techGradient)" opacity="0.1"/>
+                  
+                  <!-- Leaf shape (Eco element) -->
+                  <path d="M25 45 Q35 25 50 35 Q65 25 75 45 Q65 65 50 55 Q35 65 25 45 Z" 
+                        fill="url(#leafGradient)" 
+                        opacity="0.9"/>
+                  
+                  <!-- Leaf detail lines -->
+                  <path d="M35 40 Q45 35 50 40 M45 45 Q52 40 55 45 M40 50 Q47 45 52 50" 
+                        stroke="#1B5E20" 
+                        stroke-width="1" 
+                        fill="none" 
+                        opacity="0.6"/>
+                  
+                  <!-- NFC waves/signal -->
+                  <g transform="translate(65, 45)">
+                    <!-- NFC chip representation -->
+                    <rect x="-3" y="10" width="6" height="6" rx="1" fill="url(#techGradient)"/>
+                    
+                    <!-- Signal waves -->
+                    <path d="M0 8 A8 8 0 0 1 0 22" 
+                          stroke="url(#techGradient)" 
+                          stroke-width="2" 
+                          fill="none" 
+                          opacity="0.8">
+                      <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite"/>
+                    </path>
+                    
+                    <path d="M0 5 A12 12 0 0 1 0 25" 
+                          stroke="url(#techGradient)" 
+                          stroke-width="2" 
+                          fill="none" 
+                          opacity="0.6">
+                      <animate attributeName="opacity" values="0.2;0.6;0.2" dur="2s" repeatCount="indefinite" begin="0.3s"/>
+                    </path>
+                    
+                    <path d="M0 2 A16 16 0 0 1 0 28" 
+                          stroke="url(#techGradient)" 
+                          stroke-width="2" 
+                          fill="none" 
+                          opacity="0.4">
+                      <animate attributeName="opacity" values="0.1;0.4;0.1" dur="2s" repeatCount="indefinite" begin="0.6s"/>
+                    </path>
+                  </g>
+                  
+                  <!-- Monitoring dots (representing sensors) -->
+                  <g opacity="0.7">
+                    <circle cx="30" cy="75" r="2" fill="#4CAF50">
+                      <animate attributeName="r" values="1.5;2.5;1.5" dur="3s" repeatCount="indefinite"/>
+                    </circle>
+                    <circle cx="45" cy="80" r="2" fill="#2196F3">
+                      <animate attributeName="r" values="1.5;2.5;1.5" dur="3s" repeatCount="indefinite" begin="1s"/>
+                    </circle>
+                    <circle cx="60" cy="75" r="2" fill="#FF9800">
+                      <animate attributeName="r" values="1.5;2.5;1.5" dur="3s" repeatCount="indefinite" begin="2s"/>
+                    </circle>
+                  </g>
+                  
+                  <!-- Connection lines between monitoring points -->
+                  <g stroke="#E8F5E8" stroke-width="1" opacity="0.5">
+                    <path d="M30 75 Q37 77 45 80 Q52 77 60 75" fill="none">
+                      <animate attributeName="opacity" values="0.2;0.6;0.2" dur="4s" repeatCount="indefinite"/>
+                    </path>
+                  </g>
+                  
+                  <!-- Text EcoNFC -->
+                  <text x="110" y="45" 
+                        font-family="Arial, sans-serif" 
+                        font-size="28" 
+                        font-weight="bold" 
+                        fill="url(#textGradient)">
+                    Eco
+                  </text>
+                  
+                  <text x="170" y="45" 
+                        font-family="Arial, sans-serif" 
+                        font-size="28" 
+                        font-weight="bold" 
+                        fill="url(#techGradient)">
+                    NFC
+                  </text>
+                  
+                  <!-- Tagline -->
+                  <text x="110" y="65" 
+                        font-family="Arial, sans-serif" 
+                        font-size="11" 
+                        fill="#666" 
+                        font-weight="500">
+                    Smart Environmental Monitoring
+                  </text>
+                  
+                  <!-- Tech elements (small circuit pattern) -->
+                  <g transform="translate(240, 30)" opacity="0.3">
+                    <rect x="0" y="0" width="2" height="2" fill="#2196F3"/>
+                    <rect x="4" y="0" width="2" height="2" fill="#4CAF50"/>
+                    <rect x="8" y="0" width="2" height="2" fill="#FF9800"/>
+                    <line x1="2" y1="1" x2="4" y2="1" stroke="#2196F3" stroke-width="0.5"/>
+                    <line x1="6" y1="1" x2="8" y2="1" stroke="#4CAF50" stroke-width="0.5"/>
+                  </g>
+                  
+                  <!-- WiFi icon subtle -->
+                  <g transform="translate(250, 50)" opacity="0.4">
+                    <path d="M0 8 A4 4 0 0 1 8 8" stroke="#2196F3" stroke-width="1" fill="none"/>
+                    <path d="M-2 8 A6 6 0 0 1 10 8" stroke="#2196F3" stroke-width="1" fill="none"/>
+                    <circle cx="4" cy="9" r="1" fill="#2196F3"/>
+                  </g>
+                </svg>
+            </div>
             <p class="subtitle">Solusi monitoring lingkungan berbasis IoT dan NFC untuk industri berkelanjutan dan pemantauan kualitas limbah real-time</p>
         </div>
         
@@ -396,8 +516,136 @@
     <!-- Halaman Konfigurasi -->
     <div id="config" class="container hidden">
         <div class="header">
-            <div class="logo"></div>
-            <h1>Konfigurasi EcoNFC</h1>
+            <div class="logo">
+                <svg viewBox="0 0 300 120" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <!-- Gradients untuk efek modern -->
+                    <linearGradient id="leafGradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
+                      <stop offset="100%" style="stop-color:#2E7D32;stop-opacity:1" />
+                    </linearGradient>
+                    
+                    <linearGradient id="techGradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" style="stop-color:#2196F3;stop-opacity:1" />
+                      <stop offset="100%" style="stop-color:#1976D2;stop-opacity:1" />
+                    </linearGradient>
+                    
+                    <linearGradient id="textGradient2" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" style="stop-color:#2E7D32;stop-opacity:1" />
+                      <stop offset="50%" style="stop-color:#4CAF50;stop-opacity:1" />
+                      <stop offset="100%" style="stop-color:#2196F3;stop-opacity:1" />
+                    </linearGradient>
+                  </defs>
+                  
+                  <!-- Background circle dengan subtle gradient -->
+                  <circle cx="50" cy="60" r="45" fill="url(#techGradient2)" opacity="0.1"/>
+                  
+                  <!-- Leaf shape (Eco element) -->
+                  <path d="M25 45 Q35 25 50 35 Q65 25 75 45 Q65 65 50 55 Q35 65 25 45 Z" 
+                        fill="url(#leafGradient2)" 
+                        opacity="0.9"/>
+                  
+                  <!-- Leaf detail lines -->
+                  <path d="M35 40 Q45 35 50 40 M45 45 Q52 40 55 45 M40 50 Q47 45 52 50" 
+                        stroke="#1B5E20" 
+                        stroke-width="1" 
+                        fill="none" 
+                        opacity="0.6"/>
+                  
+                  <!-- NFC waves/signal -->
+                  <g transform="translate(65, 45)">
+                    <!-- NFC chip representation -->
+                    <rect x="-3" y="10" width="6" height="6" rx="1" fill="url(#techGradient2)"/>
+                    
+                    <!-- Signal waves -->
+                    <path d="M0 8 A8 8 0 0 1 0 22" 
+                          stroke="url(#techGradient2)" 
+                          stroke-width="2" 
+                          fill="none" 
+                          opacity="0.8">
+                      <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite"/>
+                    </path>
+                    
+                    <path d="M0 5 A12 12 0 0 1 0 25" 
+                          stroke="url(#techGradient2)" 
+                          stroke-width="2" 
+                          fill="none" 
+                          opacity="0.6">
+                      <animate attributeName="opacity" values="0.2;0.6;0.2" dur="2s" repeatCount="indefinite" begin="0.3s"/>
+                    </path>
+                    
+                    <path d="M0 2 A16 16 0 0 1 0 28" 
+                          stroke="url(#techGradient2)" 
+                          stroke-width="2" 
+                          fill="none" 
+                          opacity="0.4">
+                      <animate attributeName="opacity" values="0.1;0.4;0.1" dur="2s" repeatCount="indefinite" begin="0.6s"/>
+                    </path>
+                  </g>
+                  
+                  <!-- Monitoring dots (representing sensors) -->
+                  <g opacity="0.7">
+                    <circle cx="30" cy="75" r="2" fill="#4CAF50">
+                      <animate attributeName="r" values="1.5;2.5;1.5" dur="3s" repeatCount="indefinite"/>
+                    </circle>
+                    <circle cx="45" cy="80" r="2" fill="#2196F3">
+                      <animate attributeName="r" values="1.5;2.5;1.5" dur="3s" repeatCount="indefinite" begin="1s"/>
+                    </circle>
+                    <circle cx="60" cy="75" r="2" fill="#FF9800">
+                      <animate attributeName="r" values="1.5;2.5;1.5" dur="3s" repeatCount="indefinite" begin="2s"/>
+                    </circle>
+                  </g>
+                  
+                  <!-- Connection lines between monitoring points -->
+                  <g stroke="#E8F5E8" stroke-width="1" opacity="0.5">
+                    <path d="M30 75 Q37 77 45 80 Q52 77 60 75" fill="none">
+                      <animate attributeName="opacity" values="0.2;0.6;0.2" dur="4s" repeatCount="indefinite"/>
+                    </path>
+                  </g>
+                  
+                  <!-- Text EcoNFC -->
+                  <text x="110" y="45" 
+                        font-family="Arial, sans-serif" 
+                        font-size="28" 
+                        font-weight="bold" 
+                        fill="url(#textGradient2)">
+                    Eco
+                  </text>
+                  
+                  <text x="170" y="45" 
+                        font-family="Arial, sans-serif" 
+                        font-size="28" 
+                        font-weight="bold" 
+                        fill="url(#techGradient2)">
+                    NFC
+                  </text>
+                  
+                  <!-- Tagline -->
+                  <text x="110" y="65" 
+                        font-family="Arial, sans-serif" 
+                        font-size="11" 
+                        fill="#666" 
+                        font-weight="500">
+                    Smart Environmental Monitoring
+                  </text>
+                  
+                  <!-- Tech elements (small circuit pattern) -->
+                  <g transform="translate(240, 30)" opacity="0.3">
+                    <rect x="0" y="0" width="2" height="2" fill="#2196F3"/>
+                    <rect x="4" y="0" width="2" height="2" fill="#4CAF50"/>
+                    <rect x="8" y="0" width="2" height="2" fill="#FF9800"/>
+                    <line x1="2" y1="1" x2="4" y2="1" stroke="#2196F3" stroke-width="0.5"/>
+                    <line x1="6" y1="1" x2="8" y2="1" stroke="#4CAF50" stroke-width="0.5"/>
+                  </g>
+                  
+                  <!-- WiFi icon subtle -->
+                  <g transform="translate(250, 50)" opacity="0.4">
+                    <path d="M0 8 A4 4 0 0 1 8 8" stroke="#2196F3" stroke-width="1" fill="none"/>
+                    <path d="M-2 8 A6 6 0 0 1 10 8" stroke="#2196F3" stroke-width="1" fill="none"/>
+                    <circle cx="4" cy="9" r="1" fill="#2196F3"/>
+                  </g>
+                </svg>
+            </div>
             <p class="subtitle">Atur parameter monitoring lingkungan dan koneksi cloud untuk pemantauan kualitas limbah dan emisi secara berkelanjutan</p>
         </div>
 
