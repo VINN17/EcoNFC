@@ -688,3 +688,342 @@
             <div class="form-group">
                 <label for="nfcId">🏷️ EcoNFC Device ID</label>
                 <input type="text" id="nfcId" placeholder="ID unik perangkat EcoNFC yang terdeteksi" readonly>
+            </div>
+
+            <div class="form-group">
+                <label for="deviceName">🌱 Nama Lokasi Monitoring</label>
+                <input type="text" id="deviceName" placeholder="Contoh: Limbah-Pabrik-Tekstil-A1" required>
+            </div>
+            
+            <div class="config-grid">
+                <div class="form-group">
+                    <label for="wifi">📶 SSID WiFi</label>
+                    <input type="text" id="wifi" class="input-icon wifi-icon" placeholder="Nama jaringan WiFi" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="wifiPassword">🔐 Password WiFi</label>
+                    <input type="password" id="wifiPassword" placeholder="Password jaringan WiFi" required>
+                </div>
+            </div>
+
+            <div class="config-grid">
+                <div class="form-group">
+                    <label for="serverUrl">☁️ URL Cloud Server</label>
+                    <input type="url" id="serverUrl" class="input-icon server-icon" placeholder="http://192.168.1.100/api atau https://cloud.econfc.com/api" required>
+                    <div class="protocol-toggle">
+                        <input type="checkbox" id="allowHttp" checked>
+                        <label for="allowHttp">✅ Izinkan protokol HTTP (tidak aman untuk produksi)</label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="serverPort">🔌 Port Cloud</label>
+                    <input type="number" id="serverPort" placeholder="80 atau 443" min="1" max="65535" required>
+                </div>
+            </div>
+
+            <div class="config-grid">
+                <div class="form-group">
+                    <label for="sensorType">🧪 Jenis Monitoring Lingkungan</label>
+                    <select id="sensorType" required>
+                        <option value="">Pilih parameter monitoring</option>
+                        <option value="water_quality">Kualitas Air & pH Limbah</option>
+                        <option value="air_quality">Kualitas Udara & Gas Emisi</option>
+                        <option value="temperature">Suhu Lingkungan & Proses</option>
+                        <option value="humidity">Kelembaban & Kondisi Atmosfer</option>
+                        <option value="chemical">Deteksi Bahan Kimia Berbahaya</option>
+                        <option value="noise">Level Kebisingan Industri</option>
+                        <option value="vibration">Getaran Mesin & Peralatan</option>
+                        <option value="radiation">Radiasi & Kontaminasi</option>
+                        <option value="waste_level">Level Limbah & Tank Monitoring</option>
+                        <option value="multi_param">Multi-Parameter Lingkungan</option>
+                        <option value="custom">Parameter Kustom</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="interval">🔋 Interval Hemat Daya</label>
+                    <select id="interval" required>
+                        <option value="">Pilih interval efisien</option>
+                        <option value="60">1 menit (Monitoring Kritis)</option>
+                        <option value="300">5 menit (Monitoring Aktif)</option>
+                        <option value="900">15 menit (Monitoring Normal)</option>
+                        <option value="1800">30 menit (Hemat Daya)</option>
+                        <option value="3600">1 jam (Ultra Hemat Daya)</option>
+                        <option value="21600">6 jam (Monitoring Harian)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="deviceStatus">⚡ Status Perangkat</label>
+                <select id="deviceStatus" required>
+                    <option value="">Pilih status operasional</option>
+                    <option value="active">🟢 Aktif - Monitoring Berjalan</option>
+                    <option value="inactive">🔴 Non-Aktif - Standby Mode</option>
+                    <option value="maintenance">🟡 Maintenance - Mode Kalibrasi</option>
+                    <option value="testing">🔵 Testing - Mode Pengujian</option>
+                </select>
+            </div>
+            
+            <button type="submit" id="saveConfig" class="btn btn-primary">
+                🌱 Simpan Konfigurasi ke EcoNFC
+            </button>
+        </form>
+        
+        <div id="statusMessage"></div>
+
+        <!-- Footer dengan kontak -->
+        <div class="footer">
+            <div class="contact-info">
+                <h4>📞 Bantuan & Dukungan</h4>
+                <div class="contact-item">
+                    <span>📱 WhatsApp:</span>
+                    <a href="https://wa.me/6285772644387" target="_blank">085772644387</a>
+                </div>
+                <div class="contact-item">
+                    <span>📧 Email:</span>
+                    <a href="mailto:immarfn17@gmail.com">immarfn17@gmail.com</a>
+                </div>
+                <div class="contact-item">
+                    <span>💻 GitHub:</span>
+                    <a href="https://github.com/VINN17" target="_blank">VINN17</a>
+                </div>
+            </div>
+            <div class="brand-footer">
+                <p>Powered by <strong>EcoNFC</strong> © 2025 - Smart Environmental Monitoring</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let nfcData = '';
+        let isProcessing = false;
+
+        // Fungsi untuk menampilkan pesan
+        function showMessage(elementId, message, type = 'info') {
+            const messageElement = document.getElementById(elementId);
+            messageElement.innerHTML = message;
+            messageElement.className = `message ${type}`;
+            messageElement.style.display = 'block';
+        }
+
+        // Fungsi untuk deteksi NFC
+        async function detectNFC() {
+            if (isProcessing) return;
+            
+            if (!('NDEFReader' in window)) {
+                showMessage('message', '❌ Browser Anda tidak mendukung NFC. Gunakan Chrome/Edge terbaru pada perangkat Android.', 'error');
+                return;
+            }
+
+            isProcessing = true;
+            const detectBtn = document.getElementById('detectNFC');
+            const originalText = detectBtn.innerHTML;
+            detectBtn.innerHTML = '<span class="loading-spinner"></span>Mendeteksi NFC Tag...';
+            detectBtn.disabled = true;
+
+            const ndef = new NDEFReader();
+            try {
+                await ndef.scan();
+                showMessage('message', '<span class="nfc-animation">🌱</span> Tempelkan perangkat EcoNFC ke smartphone Anda...', 'info');
+
+                ndef.onreading = event => {
+                    const message = event.message;
+                    let hasData = false;
+                    
+                    for (const record of message.records) {
+                        if (record.recordType === "text") {
+                            const decoder = new TextDecoder(record.encoding || 'utf-8');
+                            nfcData = decoder.decode(record.data);
+                            hasData = true;
+                            break;
+                        }
+                    }
+
+                    // Menggunakan serial number sebagai ID jika tidak ada data text
+                    const nfcId = event.serialNumber || 'Unknown';
+                    document.getElementById('nfcId').value = nfcId;
+                    
+                    // Beralih ke halaman konfigurasi
+                    document.getElementById('home').classList.add('hidden');
+                    document.getElementById('config').classList.remove('hidden');
+                    
+                    // Parse existing configuration if available
+                    if (hasData && nfcData) {
+                        try {
+                            const config = JSON.parse(nfcData);
+                            document.getElementById('deviceName').value = config.deviceName || '';
+                            document.getElementById('wifi').value = config.wifi || '';
+                            document.getElementById('wifiPassword').value = config.wifiPassword || '';
+                            document.getElementById('serverUrl').value = config.serverUrl || '';
+                            document.getElementById('serverPort').value = config.serverPort || '';
+                            document.getElementById('sensorType').value = config.sensorType || '';
+                            document.getElementById('interval').value = config.interval || '';
+                            document.getElementById('deviceStatus').value = config.deviceStatus || '';
+                            
+                            showMessage('statusMessage', '✅ Konfigurasi existing berhasil dimuat dari EcoNFC', 'success');
+                        } catch (error) {
+                            showMessage('statusMessage', 'ℹ️ EcoNFC terdeteksi, silakan isi konfigurasi monitoring lingkungan', 'info');
+                        }
+                    } else {
+                        showMessage('statusMessage', 'ℹ️ Perangkat EcoNFC terdeteksi, silakan isi konfigurasi monitoring lingkungan', 'info');
+                    }
+                };
+
+            } catch (error) {
+                console.error("Error mendeteksi NFC:", error);
+                let errorMsg = 'Gagal mendeteksi NFC. ';
+                if (error.name === 'NotAllowedError') {
+                    errorMsg += 'Izin NFC ditolak. Aktifkan NFC dan berikan izin.';
+                } else if (error.name === 'NotSupportedError') {
+                    errorMsg += 'Perangkat tidak mendukung NFC.';
+                } else {
+                    errorMsg += 'Pastikan NFC aktif dan coba lagi.';
+                }
+                showMessage('message', `❌ ${errorMsg}`, 'error');
+            } finally {
+                isProcessing = false;
+                detectBtn.innerHTML = originalText;
+                detectBtn.disabled = false;
+            }
+        }
+
+        // Event listener untuk tombol deteksi NFC
+        document.getElementById('detectNFC').addEventListener('click', detectNFC);
+
+        // Event listener untuk form submit
+        document.getElementById('configForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (isProcessing) return;
+            isProcessing = true;
+
+            const saveBtn = document.getElementById('saveConfig');
+            const originalText = saveBtn.innerHTML;
+            saveBtn.innerHTML = '<span class="loading-spinner"></span>Mengkonfigurasi EcoNFC...';
+            saveBtn.disabled = true;
+
+            // Ambil semua nilai dari form
+            const formData = {
+                nfcId: document.getElementById('nfcId').value,
+                deviceName: document.getElementById('deviceName').value.trim(),
+                wifi: document.getElementById('wifi').value.trim(),
+                wifiPassword: document.getElementById('wifiPassword').value,
+                serverUrl: document.getElementById('serverUrl').value.trim(),
+                serverPort: parseInt(document.getElementById('serverPort').value),
+                sensorType: document.getElementById('sensorType').value,
+                interval: parseInt(document.getElementById('interval').value),
+                deviceStatus: document.getElementById('deviceStatus').value,
+                timestamp: new Date().toISOString(),
+                version: '1.0'
+            };
+
+            // Validasi data
+            const requiredFields = ['deviceName', 'wifi', 'wifiPassword', 'serverUrl', 'serverPort', 'sensorType', 'interval', 'deviceStatus'];
+            for (const field of requiredFields) {
+                if (!formData[field]) {
+                    showMessage('statusMessage', `❌ Field "${field}" wajib diisi!`, 'error');
+                    isProcessing = false;
+                    saveBtn.innerHTML = originalText;
+                    saveBtn.disabled = false;
+                    return;
+                }
+            }
+
+            // Validasi URL dengan dukungan HTTP
+            try {
+                const url = new URL(formData.serverUrl);
+                const allowHttp = document.getElementById('allowHttp').checked;
+                
+                // Cek protokol
+                if (!url.protocol.startsWith('https') && !url.protocol.startsWith('http')) {
+                    showMessage('statusMessage', '❌ URL harus menggunakan protokol HTTP atau HTTPS!', 'error');
+                    isProcessing = false;
+                    saveBtn.innerHTML = originalText;
+                    saveBtn.disabled = false;
+                    return;
+                }
+                
+                // Warning jika menggunakan HTTP
+                if (url.protocol.startsWith('http:') && !allowHttp) {
+                    showMessage('statusMessage', '🔒 Gunakan HTTPS untuk keamanan data lingkungan yang optimal, atau centang "Izinkan HTTP"', 'warning');
+                    isProcessing = false;
+                    saveBtn.innerHTML = originalText;
+                    saveBtn.disabled = false;
+                    return;
+                }
+                
+                // Peringatan keamanan untuk HTTP
+                if (url.protocol.startsWith('http:') && allowHttp) {
+                    showMessage('statusMessage', '⚠️ Menggunakan HTTP tidak aman untuk lingkungan produksi. Data dapat disadap!', 'warning');
+                }
+                
+            } catch {
+                showMessage('statusMessage', '❌ URL cloud server tidak valid! Gunakan format: http://192.168.1.100 atau https://cloud.econfc.com', 'error');
+                isProcessing = false;
+                saveBtn.innerHTML = originalText;
+                saveBtn.disabled = false;
+                return;
+            }
+
+            // Buat JSON configuration
+            const configJSON = JSON.stringify(formData, null, 2);
+
+            try {
+                const ndef = new NDEFReader();
+                await ndef.write({
+                    records: [{
+                        recordType: "text",
+                        data: configJSON
+                    }]
+                });
+
+                const protocolType = formData.serverUrl.startsWith('https:') ? 'HTTPS (Aman)' : 'HTTP (Tidak Aman)';
+                showMessage('statusMessage', 
+                    `🌱 Konfigurasi EcoNFC berhasil disimpan!<br>
+                    📍 Lokasi: ${formData.deviceName}<br>
+                    📶 WiFi: ${formData.wifi}<br>
+                    ☁️ Cloud: ${formData.serverUrl}:${formData.serverPort} (${protocolType})<br>
+                    🧪 Monitoring: ${document.getElementById('sensorType').selectedOptions[0].textContent}<br>
+                    🔋 Interval: ${formData.interval} detik<br>
+                    ⚡ Status: ${document.getElementById('deviceStatus').selectedOptions[0].textContent}`, 'success');
+
+                console.log("Konfigurasi tersimpan:", formData);
+
+                // Auto-redirect setelah 3 detik
+                setTimeout(() => {
+                    if (confirm('Konfigurasi EcoNFC berhasil! Ingin mengkonfigurasi perangkat EcoNFC lainnya?')) {
+                        location.reload();
+                    }
+                }, 3000);
+
+            } catch (error) {
+                console.error("Error menulis ke EcoNFC:", error);
+                let errorMsg = 'Gagal menulis ke perangkat EcoNFC. ';
+                if (error.name === 'NotAllowedError') {
+                    errorMsg += 'Izin NFC ditolak.';
+                } else if (error.name === 'NetworkError') {
+                    errorMsg += 'Perangkat EcoNFC tidak dalam jangkauan atau tidak kompatibel.';
+                } else {
+                    errorMsg += 'Pastikan perangkat EcoNFC berada dekat dengan smartphone.';
+                }
+                showMessage('statusMessage', `❌ ${errorMsg}`, 'error');
+            } finally {
+                isProcessing = false;
+                saveBtn.innerHTML = originalText;
+                saveBtn.disabled = false;
+            }
+        });
+
+        // Auto-focus pertama pada form yang terlihat
+        document.addEventListener('DOMContentLoaded', () => {
+            const deviceNameInput = document.getElementById('deviceName');
+            if (deviceNameInput && !document.getElementById('config').classList.contains('hidden')) {
+                deviceNameInput.focus();
+            }
+        });
+    </script>
+</body>
+</html>
