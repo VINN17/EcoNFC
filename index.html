@@ -408,80 +408,35 @@
             <div class="logo">
                 <svg viewBox="0 0 300 120" xmlns="http://www.w3.org/2000/svg">
                   <defs>
-                    <!-- Gradients untuk efek modern -->
                     <linearGradient id="leafGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                       <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
                       <stop offset="100%" style="stop-color:#2E7D32;stop-opacity:1" />
                     </linearGradient>
-                    
                     <linearGradient id="techGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                       <stop offset="0%" style="stop-color:#2196F3;stop-opacity:1" />
                       <stop offset="100%" style="stop-color:#1976D2;stop-opacity:1" />
                     </linearGradient>
-                    
                     <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                       <stop offset="0%" style="stop-color:#2E7D32;stop-opacity:1" />
                       <stop offset="50%" style="stop-color:#4CAF50;stop-opacity:1" />
                       <stop offset="100%" style="stop-color:#2196F3;stop-opacity:1" />
                     </linearGradient>
-                    
-                    <!-- Glow effect -->
-                    <filter id="glow">
-                      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-                      <feMerge> 
-                        <feMergeNode in="coloredBlur"/>
-                        <feMergeNode in="SourceGraphic"/>
-                      </feMerge>
-                    </filter>
                   </defs>
-                  
-                  <!-- Background circle dengan subtle gradient -->
                   <circle cx="50" cy="60" r="45" fill="url(#techGradient)" opacity="0.1"/>
-                  
-                  <!-- Leaf shape (Eco element) -->
-                  <path d="M25 45 Q35 25 50 35 Q65 25 75 45 Q65 65 50 55 Q35 65 25 45 Z" 
-                        fill="url(#leafGradient)" 
-                        opacity="0.9"/>
-                  
-                  <!-- Leaf detail lines -->
-                  <path d="M35 40 Q45 35 50 40 M45 45 Q52 40 55 45 M40 50 Q47 45 52 50" 
-                        stroke="#1B5E20" 
-                        stroke-width="1" 
-                        fill="none" 
-                        opacity="0.6"/>
-                  
-                  <!-- NFC waves/signal -->
+                  <path d="M25 45 Q35 25 50 35 Q65 25 75 45 Q65 65 50 55 Q35 65 25 45 Z" fill="url(#leafGradient)" opacity="0.9"/>
+                  <path d="M35 40 Q45 35 50 40 M45 45 Q52 40 55 45 M40 50 Q47 45 52 50" stroke="#1B5E20" stroke-width="1" fill="none" opacity="0.6"/>
                   <g transform="translate(65, 45)">
-                    <!-- NFC chip representation -->
                     <rect x="-3" y="10" width="6" height="6" rx="1" fill="url(#techGradient)"/>
-                    
-                    <!-- Signal waves -->
-                    <path d="M0 8 A8 8 0 0 1 0 22" 
-                          stroke="url(#techGradient)" 
-                          stroke-width="2" 
-                          fill="none" 
-                          opacity="0.8">
+                    <path d="M0 8 A8 8 0 0 1 0 22" stroke="url(#techGradient)" stroke-width="2" fill="none" opacity="0.8">
                       <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite"/>
                     </path>
-                    
-                    <path d="M0 5 A12 12 0 0 1 0 25" 
-                          stroke="url(#techGradient)" 
-                          stroke-width="2" 
-                          fill="none" 
-                          opacity="0.6">
+                    <path d="M0 5 A12 12 0 0 1 0 25" stroke="url(#techGradient)" stroke-width="2" fill="none" opacity="0.6">
                       <animate attributeName="opacity" values="0.2;0.6;0.2" dur="2s" repeatCount="indefinite" begin="0.3s"/>
                     </path>
-                    
-                    <path d="M0 2 A16 16 0 0 1 0 28" 
-                          stroke="url(#techGradient)" 
-                          stroke-width="2" 
-                          fill="none" 
-                          opacity="0.4">
+                    <path d="M0 2 A16 16 0 0 1 0 28" stroke="url(#techGradient)" stroke-width="2" fill="none" opacity="0.4">
                       <animate attributeName="opacity" values="0.1;0.4;0.1" dur="2s" repeatCount="indefinite" begin="0.6s"/>
                     </path>
                   </g>
-                  
-                  <!-- Monitoring dots (representing sensors) -->
                   <g opacity="0.7">
                     <circle cx="30" cy="75" r="2" fill="#4CAF50">
                       <animate attributeName="r" values="1.5;2.5;1.5" dur="3s" repeatCount="indefinite"/>
@@ -493,55 +448,14 @@
                       <animate attributeName="r" values="1.5;2.5;1.5" dur="3s" repeatCount="indefinite" begin="2s"/>
                     </circle>
                   </g>
-                  
-                  <!-- Connection lines between monitoring points -->
                   <g stroke="#E8F5E8" stroke-width="1" opacity="0.5">
                     <path d="M30 75 Q37 77 45 80 Q52 77 60 75" fill="none">
                       <animate attributeName="opacity" values="0.2;0.6;0.2" dur="4s" repeatCount="indefinite"/>
                     </path>
                   </g>
-                  
-                  <!-- Text EcoNFC -->
-                  <text x="110" y="45" 
-                        font-family="Arial, sans-serif" 
-                        font-size="28" 
-                        font-weight="bold" 
-                        fill="url(#textGradient)">
-                    Eco
-                  </text>
-                  
-                  <text x="170" y="45" 
-                        font-family="Arial, sans-serif" 
-                        font-size="28" 
-                        font-weight="bold" 
-                        fill="url(#techGradient)">
-                    NFC
-                  </text>
-                  
-                  <!-- Tagline -->
-                  <text x="110" y="65" 
-                        font-family="Arial, sans-serif" 
-                        font-size="11" 
-                        fill="#666" 
-                        font-weight="500">
-                    Smart Environmental Monitoring
-                  </text>
-                  
-                  <!-- Tech elements (small circuit pattern) -->
-                  <g transform="translate(240, 30)" opacity="0.3">
-                    <rect x="0" y="0" width="2" height="2" fill="#2196F3"/>
-                    <rect x="4" y="0" width="2" height="2" fill="#4CAF50"/>
-                    <rect x="8" y="0" width="2" height="2" fill="#FF9800"/>
-                    <line x1="2" y1="1" x2="4" y2="1" stroke="#2196F3" stroke-width="0.5"/>
-                    <line x1="6" y1="1" x2="8" y2="1" stroke="#4CAF50" stroke-width="0.5"/>
-                  </g>
-                  
-                  <!-- WiFi icon subtle -->
-                  <g transform="translate(250, 50)" opacity="0.4">
-                    <path d="M0 8 A4 4 0 0 1 8 8" stroke="#2196F3" stroke-width="1" fill="none"/>
-                    <path d="M-2 8 A6 6 0 0 1 10 8" stroke="#2196F3" stroke-width="1" fill="none"/>
-                    <circle cx="4" cy="9" r="1" fill="#2196F3"/>
-                  </g>
+                  <text x="110" y="45" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="url(#textGradient)">Eco</text>
+                  <text x="170" y="45" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="url(#techGradient)">NFC</text>
+                  <text x="110" y="65" font-family="Arial, sans-serif" font-size="11" fill="#666" font-weight="500">Smart Environmental Monitoring</text>
                 </svg>
             </div>
             <p class="subtitle">Solusi monitoring lingkungan berbasis IoT dan NFC untuk industri berkelanjutan dan pemantauan kualitas limbah real-time</p>
@@ -565,71 +479,35 @@
             <div class="logo">
                 <svg viewBox="0 0 300 120" xmlns="http://www.w3.org/2000/svg">
                   <defs>
-                    <!-- Gradients untuk efek modern -->
                     <linearGradient id="leafGradient2" x1="0%" y1="0%" x2="100%" y2="100%">
                       <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
                       <stop offset="100%" style="stop-color:#2E7D32;stop-opacity:1" />
                     </linearGradient>
-                    
                     <linearGradient id="techGradient2" x1="0%" y1="0%" x2="100%" y2="100%">
                       <stop offset="0%" style="stop-color:#2196F3;stop-opacity:1" />
                       <stop offset="100%" style="stop-color:#1976D2;stop-opacity:1" />
                     </linearGradient>
-                    
                     <linearGradient id="textGradient2" x1="0%" y1="0%" x2="100%" y2="0%">
                       <stop offset="0%" style="stop-color:#2E7D32;stop-opacity:1" />
                       <stop offset="50%" style="stop-color:#4CAF50;stop-opacity:1" />
                       <stop offset="100%" style="stop-color:#2196F3;stop-opacity:1" />
                     </linearGradient>
                   </defs>
-                  
-                  <!-- Background circle dengan subtle gradient -->
                   <circle cx="50" cy="60" r="45" fill="url(#techGradient2)" opacity="0.1"/>
-                  
-                  <!-- Leaf shape (Eco element) -->
-                  <path d="M25 45 Q35 25 50 35 Q65 25 75 45 Q65 65 50 55 Q35 65 25 45 Z" 
-                        fill="url(#leafGradient2)" 
-                        opacity="0.9"/>
-                  
-                  <!-- Leaf detail lines -->
-                  <path d="M35 40 Q45 35 50 40 M45 45 Q52 40 55 45 M40 50 Q47 45 52 50" 
-                        stroke="#1B5E20" 
-                        stroke-width="1" 
-                        fill="none" 
-                        opacity="0.6"/>
-                  
-                  <!-- NFC waves/signal -->
+                  <path d="M25 45 Q35 25 50 35 Q65 25 75 45 Q65 65 50 55 Q35 65 25 45 Z" fill="url(#leafGradient2)" opacity="0.9"/>
+                  <path d="M35 40 Q45 35 50 40 M45 45 Q52 40 55 45 M40 50 Q47 45 52 50" stroke="#1B5E20" stroke-width="1" fill="none" opacity="0.6"/>
                   <g transform="translate(65, 45)">
-                    <!-- NFC chip representation -->
                     <rect x="-3" y="10" width="6" height="6" rx="1" fill="url(#techGradient2)"/>
-                    
-                    <!-- Signal waves -->
-                    <path d="M0 8 A8 8 0 0 1 0 22" 
-                          stroke="url(#techGradient2)" 
-                          stroke-width="2" 
-                          fill="none" 
-                          opacity="0.8">
+                    <path d="M0 8 A8 8 0 0 1 0 22" stroke="url(#techGradient2)" stroke-width="2" fill="none" opacity="0.8">
                       <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite"/>
                     </path>
-                    
-                    <path d="M0 5 A12 12 0 0 1 0 25" 
-                          stroke="url(#techGradient2)" 
-                          stroke-width="2" 
-                          fill="none" 
-                          opacity="0.6">
+                    <path d="M0 5 A12 12 0 0 1 0 25" stroke="url(#techGradient2)" stroke-width="2" fill="none" opacity="0.6">
                       <animate attributeName="opacity" values="0.2;0.6;0.2" dur="2s" repeatCount="indefinite" begin="0.3s"/>
                     </path>
-                    
-                    <path d="M0 2 A16 16 0 0 1 0 28" 
-                          stroke="url(#techGradient2)" 
-                          stroke-width="2" 
-                          fill="none" 
-                          opacity="0.4">
+                    <path d="M0 2 A16 16 0 0 1 0 28" stroke="url(#techGradient2)" stroke-width="2" fill="none" opacity="0.4">
                       <animate attributeName="opacity" values="0.1;0.4;0.1" dur="2s" repeatCount="indefinite" begin="0.6s"/>
                     </path>
                   </g>
-                  
-                  <!-- Monitoring dots (representing sensors) -->
                   <g opacity="0.7">
                     <circle cx="30" cy="75" r="2" fill="#4CAF50">
                       <animate attributeName="r" values="1.5;2.5;1.5" dur="3s" repeatCount="indefinite"/>
@@ -641,55 +519,14 @@
                       <animate attributeName="r" values="1.5;2.5;1.5" dur="3s" repeatCount="indefinite" begin="2s"/>
                     </circle>
                   </g>
-                  
-                  <!-- Connection lines between monitoring points -->
                   <g stroke="#E8F5E8" stroke-width="1" opacity="0.5">
                     <path d="M30 75 Q37 77 45 80 Q52 77 60 75" fill="none">
                       <animate attributeName="opacity" values="0.2;0.6;0.2" dur="4s" repeatCount="indefinite"/>
                     </path>
                   </g>
-                  
-                  <!-- Text EcoNFC -->
-                  <text x="110" y="45" 
-                        font-family="Arial, sans-serif" 
-                        font-size="28" 
-                        font-weight="bold" 
-                        fill="url(#textGradient2)">
-                    Eco
-                  </text>
-                  
-                  <text x="170" y="45" 
-                        font-family="Arial, sans-serif" 
-                        font-size="28" 
-                        font-weight="bold" 
-                        fill="url(#techGradient2)">
-                    NFC
-                  </text>
-                  
-                  <!-- Tagline -->
-                  <text x="110" y="65" 
-                        font-family="Arial, sans-serif" 
-                        font-size="11" 
-                        fill="#666" 
-                        font-weight="500">
-                    Smart Environmental Monitoring
-                  </text>
-                  
-                  <!-- Tech elements (small circuit pattern) -->
-                  <g transform="translate(240, 30)" opacity="0.3">
-                    <rect x="0" y="0" width="2" height="2" fill="#2196F3"/>
-                    <rect x="4" y="0" width="2" height="2" fill="#4CAF50"/>
-                    <rect x="8" y="0" width="2" height="2" fill="#FF9800"/>
-                    <line x1="2" y1="1" x2="4" y2="1" stroke="#2196F3" stroke-width="0.5"/>
-                    <line x1="6" y1="1" x2="8" y2="1" stroke="#4CAF50" stroke-width="0.5"/>
-                  </g>
-                  
-                  <!-- WiFi icon subtle -->
-                  <g transform="translate(250, 50)" opacity="0.4">
-                    <path d="M0 8 A4 4 0 0 1 8 8" stroke="#2196F3" stroke-width="1" fill="none"/>
-                    <path d="M-2 8 A6 6 0 0 1 10 8" stroke="#2196F3" stroke-width="1" fill="none"/>
-                    <circle cx="4" cy="9" r="1" fill="#2196F3"/>
-                  </g>
+                  <text x="110" y="45" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="url(#textGradient2)">Eco</text>
+                  <text x="170" y="45" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="url(#techGradient2)">NFC</text>
+                  <text x="110" y="65" font-family="Arial, sans-serif" font-size="11" fill="#666" font-weight="500">Smart Environmental Monitoring</text>
                 </svg>
             </div>
             <p class="subtitle">Atur parameter monitoring lingkungan dan koneksi cloud untuk pemantauan kualitas limbah dan emisi secara berkelanjutan</p>
@@ -718,25 +555,10 @@
                 </div>
             </div>
 
-            <!-- <div class="config-grid">
-                <div class="form-group">
-                    <label for="serverUrl">☁️ URL Cloud Server</label>
-                    <input type="url" id="serverUrl" class="input-icon server-icon" placeholder="http://192.168.1.100/api atau https://cloud.econfc.com/api" required>
-                    <div class="protocol-toggle">
-                        <input type="checkbox" id="allowHttp" checked>
-                        <label for="allowHttp">✅ Izinkan protokol HTTP (tidak aman untuk produksi)</label>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="serverPort">🔌 Port Cloud</label>
-                    <input type="number" id="serverPort" placeholder="80 atau 443" min="1" max="65535" required>
-                </div>
-            </div> -->
             <div class="config-grid">
                 <div class="form-group">
                     <label for="serverUrl">☁️ Server/Broker Address</label>
-                    <input type="text" id="serverUrl" class="input-icon server-icon" placeholder="broker.hivemq.com atau 192.168.1.100 atau https://api.econfc.com" required>
+                    <input type="text" id="serverUrl" class="input-icon server-icon" placeholder="broker.hivemq.com atau 192.168.1.100" required>
                     <span class="input-hint">Format: hostname, IP, atau URL lengkap (dengan/tanpa protokol)</span>
                     <div class="protocol-toggle">
                         <input type="checkbox" id="useProtocol">
@@ -795,7 +617,6 @@
         
         <div id="statusMessage"></div>
 
-        <!-- Footer dengan kontak -->
         <div class="footer">
             <div class="contact-info">
                 <h4>📞 Bantuan & Dukungan</h4>
@@ -822,7 +643,6 @@
         let nfcData = '';
         let isProcessing = false;
 
-        // Fungsi untuk menampilkan pesan
         function showMessage(elementId, message, type = 'info') {
             const messageElement = document.getElementById(elementId);
             messageElement.innerHTML = message;
@@ -830,7 +650,6 @@
             messageElement.style.display = 'block';
         }
 
-        // Fungsi untuk deteksi NFC
         async function detectNFC() {
             if (isProcessing) return;
             
@@ -863,15 +682,12 @@
                         }
                     }
 
-                    // Menggunakan serial number sebagai ID jika tidak ada data text
                     const nfcId = event.serialNumber || 'Unknown';
                     document.getElementById('nfcId').value = nfcId;
                     
-                    // Beralih ke halaman konfigurasi
                     document.getElementById('home').classList.add('hidden');
                     document.getElementById('config').classList.remove('hidden');
                     
-                    // Parse existing configuration if available
                     if (hasData && nfcData) {
                         try {
                             const config = JSON.parse(nfcData);
@@ -911,10 +727,8 @@
             }
         }
 
-        // Event listener untuk tombol deteksi NFC
         document.getElementById('detectNFC').addEventListener('click', detectNFC);
 
-        // Event listener untuk form submit
         document.getElementById('configForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -926,14 +740,14 @@
             saveBtn.innerHTML = '<span class="loading-spinner"></span>Mengkonfigurasi EcoNFC...';
             saveBtn.disabled = true;
 
-            // Ambil semua nilai dari form
+            const serverPortValue = document.getElementById('serverPort').value.trim();
+            
             const formData = {
                 nfcId: document.getElementById('nfcId').value,
                 deviceName: document.getElementById('deviceName').value.trim(),
                 wifi: document.getElementById('wifi').value.trim(),
                 wifiPassword: document.getElementById('wifiPassword').value,
                 serverUrl: document.getElementById('serverUrl').value.trim(),
-                serverPort: parseInt(document.getElementById('serverPort').value),
                 sensorType: document.getElementById('sensorType').value,
                 interval: parseInt(document.getElementById('interval').value),
                 deviceStatus: document.getElementById('deviceStatus').value,
@@ -941,8 +755,11 @@
                 version: '1.0'
             };
 
-            // Validasi data
-            const requiredFields = ['deviceName', 'wifi', 'wifiPassword', 'serverUrl', 'serverPort', 'sensorType', 'interval', 'deviceStatus'];
+            if (serverPortValue) {
+                formData.serverPort = parseInt(serverPortValue);
+            }
+
+            const requiredFields = ['deviceName', 'wifi', 'wifiPassword', 'serverUrl', 'sensorType', 'interval', 'deviceStatus'];
             for (const field of requiredFields) {
                 if (!formData[field]) {
                     showMessage('statusMessage', `❌ Field "${field}" wajib diisi!`, 'error');
@@ -953,43 +770,22 @@
                 }
             }
 
-            // Validasi URL dengan dukungan HTTP
-            try {
-                const url = new URL(formData.serverUrl);
-                const allowHttp = document.getElementById('allowHttp').checked;
-                
-                // Cek protokol
-                if (!url.protocol.startsWith('https') && !url.protocol.startsWith('http')) {
-                    showMessage('statusMessage', '❌ URL harus menggunakan protokol HTTP atau HTTPS!', 'error');
-                    isProcessing = false;
-                    saveBtn.innerHTML = originalText;
-                    saveBtn.disabled = false;
-                    return;
-                }
-                
-                // Warning jika menggunakan HTTP
-                if (url.protocol.startsWith('http:') && !allowHttp) {
-                    showMessage('statusMessage', '🔒 Gunakan HTTPS untuk keamanan data lingkungan yang optimal, atau centang "Izinkan HTTP"', 'warning');
-                    isProcessing = false;
-                    saveBtn.innerHTML = originalText;
-                    saveBtn.disabled = false;
-                    return;
-                }
-                
-                // Peringatan keamanan untuk HTTP
-                if (url.protocol.startsWith('http:') && allowHttp) {
-                    showMessage('statusMessage', '⚠️ Menggunakan HTTP tidak aman untuk lingkungan produksi. Data dapat disadap!', 'warning');
-                }
-                
-            } catch {
-                showMessage('statusMessage', '❌ URL cloud server tidak valid! Gunakan format: http://192.168.1.100 atau https://cloud.econfc.com', 'error');
+            let serverAddress = formData.serverUrl;
+            const useProtocol = document.getElementById('useProtocol').checked;
+            const hasProtocol = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//i.test(serverAddress);
+            
+            if (useProtocol && !hasProtocol) {
+                formData.serverUrl = `https://${serverAddress}`;
+            }
+            
+            if (formData.serverPort && (formData.serverPort < 1 || formData.serverPort > 65535)) {
+                showMessage('statusMessage', '❌ Port harus antara 1-65535!', 'error');
                 isProcessing = false;
                 saveBtn.innerHTML = originalText;
                 saveBtn.disabled = false;
                 return;
             }
 
-            // Buat JSON configuration
             const configJSON = JSON.stringify(formData, null, 2);
 
             try {
@@ -1001,19 +797,37 @@
                     }]
                 });
 
-                const protocolType = formData.serverUrl.startsWith('https:') ? 'HTTPS (Aman)' : 'HTTP (Tidak Aman)';
+                let protocolInfo = 'Raw Address';
+                if (formData.serverUrl.includes('://')) {
+                    const protocol = formData.serverUrl.split('://')[0];
+                    const protocolMap = {
+                        'https': 'HTTPS (Secure)',
+                        'http': 'HTTP',
+                        'mqtt': 'MQTT',
+                        'mqtts': 'MQTTS (Secure)',
+                        'ws': 'WebSocket',
+                        'wss': 'WebSocket Secure',
+                        'tcp': 'TCP',
+                        'udp': 'UDP',
+                        'serial': 'Serial'
+                    };
+                    protocolInfo = protocolMap[protocol] || protocol.toUpperCase();
+                }
+                
+                const portInfo = formData.serverPort ? `:${formData.serverPort}` : '';
+                
                 showMessage('statusMessage', 
                     `🌱 Konfigurasi EcoNFC berhasil disimpan!<br>
                     📍 Lokasi: ${formData.deviceName}<br>
                     📶 WiFi: ${formData.wifi}<br>
-                    ☁️ Cloud: ${formData.serverUrl}:${formData.serverPort} (${protocolType})<br>
+                    ☁️ Server: ${formData.serverUrl}${portInfo}<br>
+                    🔐 Protokol: ${protocolInfo}<br>
                     🧪 Monitoring: ${document.getElementById('sensorType').selectedOptions[0].textContent}<br>
                     🔋 Interval: ${formData.interval}ms (${formData.interval/1000}s)<br>
                     ⚡ Status: ${document.getElementById('deviceStatus').selectedOptions[0].textContent}`, 'success');
 
                 console.log("Konfigurasi tersimpan:", formData);
 
-                // Auto-redirect setelah 3 detik
                 setTimeout(() => {
                     if (confirm('Konfigurasi EcoNFC berhasil! Ingin mengkonfigurasi perangkat EcoNFC lainnya?')) {
                         location.reload();
@@ -1038,7 +852,6 @@
             }
         });
 
-        // Auto-focus pertama pada form yang terlihat
         document.addEventListener('DOMContentLoaded', () => {
             const deviceNameInput = document.getElementById('deviceName');
             if (deviceNameInput && !document.getElementById('config').classList.contains('hidden')) {
@@ -1048,4 +861,3 @@
     </script>
 </body>
 </html>
-
