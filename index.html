@@ -718,7 +718,7 @@
                 </div>
             </div>
 
-            <div class="config-grid">
+            <!-- <div class="config-grid">
                 <div class="form-group">
                     <label for="serverUrl">☁️ URL Cloud Server</label>
                     <input type="url" id="serverUrl" class="input-icon server-icon" placeholder="http://192.168.1.100/api atau https://cloud.econfc.com/api" required>
@@ -731,6 +731,23 @@
                 <div class="form-group">
                     <label for="serverPort">🔌 Port Cloud</label>
                     <input type="number" id="serverPort" placeholder="80 atau 443" min="1" max="65535" required>
+                </div>
+            </div> -->
+            <div class="config-grid">
+                <div class="form-group">
+                    <label for="serverUrl">☁️ Server/Broker Address</label>
+                    <input type="text" id="serverUrl" class="input-icon server-icon" placeholder="broker.hivemq.com atau 192.168.1.100 atau https://api.econfc.com" required>
+                    <span class="input-hint">Format: hostname, IP, atau URL lengkap (dengan/tanpa protokol)</span>
+                    <div class="protocol-toggle">
+                        <input type="checkbox" id="useProtocol">
+                        <label for="useProtocol">🔒 Gunakan protokol (http:// atau https://)</label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="serverPort">🔌 Port Server</label>
+                    <input type="number" id="serverPort" placeholder="80, 443, 1883, 8883, dll" min="1" max="65535">
+                    <span class="input-hint">Opsional - kosongkan untuk default port</span>
                 </div>
             </div>
 
@@ -1031,3 +1048,4 @@
     </script>
 </body>
 </html>
+
