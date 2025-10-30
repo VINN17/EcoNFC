@@ -45,10 +45,12 @@
                 0 8px 25px rgba(0, 0, 0, 0.08),
                 inset 0 1px 0 rgba(255, 255, 255, 0.8);
             border: 1px solid rgba(255, 255, 255, 0.2);
-            max-width: 480px;
+            max-width: 680px;
             width: 90%;
             position: relative;
             transition: all 0.3s ease;
+            max-height: 90vh;
+            overflow-y: auto;
         }
 
         .container:hover {
@@ -91,7 +93,7 @@
             color: #718096;
             font-size: 16px;
             line-height: 1.5;
-            max-width: 320px;
+            max-width: 520px;
             margin: 0 auto;
         }
 
@@ -137,30 +139,6 @@
             background: white;
             box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
             transform: translateY(-1px);
-        }
-
-        .input-icon {
-            position: relative;
-        }
-
-        .input-icon::before {
-            content: '';
-            position: absolute;
-            right: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 20px;
-            height: 20px;
-            background-size: contain;
-            opacity: 0.4;
-        }
-
-        .wifi-icon::before {
-            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/></svg>');
-        }
-
-        .server-icon::before {
-            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/></svg>');
         }
 
         .btn {
@@ -237,12 +215,6 @@
             border: 1px solid #90cdf4;
         }
 
-        .message.warning {
-            background: #fffbeb;
-            color: #92400e;
-            border: 1px solid #fbbf24;
-        }
-
         @keyframes slideIn {
             from {
                 opacity: 0;
@@ -271,8 +243,15 @@
             margin-bottom: 20px;
         }
 
+        .config-grid-three {
+            display: grid;
+            gap: 20px;
+            grid-template-columns: 2fr 1fr;
+            margin-bottom: 20px;
+        }
+
         @media (max-width: 640px) {
-            .config-grid {
+            .config-grid, .config-grid-three {
                 grid-template-columns: 1fr;
             }
             .container {
@@ -375,29 +354,55 @@
             margin: 0;
         }
 
-        .protocol-toggle {
+        .protocol-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 8px;
+        }
+
+        .protocol-badge.mqtt {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .protocol-badge.http {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .protocol-badge.secure {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .section-divider {
+            border: none;
+            border-top: 2px dashed #e2e8f0;
+            margin: 24px 0;
+        }
+
+        .section-title {
+            color: #2d3748;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 16px;
             display: flex;
             align-items: center;
             gap: 8px;
-            margin-top: 8px;
-            padding: 8px;
-            background: #f7fafc;
+        }
+
+        .protocol-info {
+            background: #eff6ff;
             border-radius: 8px;
+            padding: 12px;
+            margin-top: 8px;
             font-size: 12px;
-        }
-
-        .protocol-toggle input[type="checkbox"] {
-            width: auto;
-            margin: 0;
-        }
-
-        .protocol-toggle label {
-            margin: 0;
-            font-size: 12px;
-            text-transform: none;
-            letter-spacing: normal;
-            font-weight: 500;
-            color: #4a5568;
+            color: #1e40af;
+            border-left: 3px solid #3b82f6;
         }
     </style>
 </head>
@@ -435,22 +440,6 @@
                     </path>
                     <path d="M0 2 A16 16 0 0 1 0 28" stroke="url(#techGradient)" stroke-width="2" fill="none" opacity="0.4">
                       <animate attributeName="opacity" values="0.1;0.4;0.1" dur="2s" repeatCount="indefinite" begin="0.6s"/>
-                    </path>
-                  </g>
-                  <g opacity="0.7">
-                    <circle cx="30" cy="75" r="2" fill="#4CAF50">
-                      <animate attributeName="r" values="1.5;2.5;1.5" dur="3s" repeatCount="indefinite"/>
-                    </circle>
-                    <circle cx="45" cy="80" r="2" fill="#2196F3">
-                      <animate attributeName="r" values="1.5;2.5;1.5" dur="3s" repeatCount="indefinite" begin="1s"/>
-                    </circle>
-                    <circle cx="60" cy="75" r="2" fill="#FF9800">
-                      <animate attributeName="r" values="1.5;2.5;1.5" dur="3s" repeatCount="indefinite" begin="2s"/>
-                    </circle>
-                  </g>
-                  <g stroke="#E8F5E8" stroke-width="1" opacity="0.5">
-                    <path d="M30 75 Q37 77 45 80 Q52 77 60 75" fill="none">
-                      <animate attributeName="opacity" values="0.2;0.6;0.2" dur="4s" repeatCount="indefinite"/>
                     </path>
                   </g>
                   <text x="110" y="45" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="url(#textGradient)">Eco</text>
@@ -508,22 +497,6 @@
                       <animate attributeName="opacity" values="0.1;0.4;0.1" dur="2s" repeatCount="indefinite" begin="0.6s"/>
                     </path>
                   </g>
-                  <g opacity="0.7">
-                    <circle cx="30" cy="75" r="2" fill="#4CAF50">
-                      <animate attributeName="r" values="1.5;2.5;1.5" dur="3s" repeatCount="indefinite"/>
-                    </circle>
-                    <circle cx="45" cy="80" r="2" fill="#2196F3">
-                      <animate attributeName="r" values="1.5;2.5;1.5" dur="3s" repeatCount="indefinite" begin="1s"/>
-                    </circle>
-                    <circle cx="60" cy="75" r="2" fill="#FF9800">
-                      <animate attributeName="r" values="1.5;2.5;1.5" dur="3s" repeatCount="indefinite" begin="2s"/>
-                    </circle>
-                  </g>
-                  <g stroke="#E8F5E8" stroke-width="1" opacity="0.5">
-                    <path d="M30 75 Q37 77 45 80 Q52 77 60 75" fill="none">
-                      <animate attributeName="opacity" values="0.2;0.6;0.2" dur="4s" repeatCount="indefinite"/>
-                    </path>
-                  </g>
                   <text x="110" y="45" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="url(#textGradient2)">Eco</text>
                   <text x="170" y="45" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="url(#techGradient2)">NFC</text>
                   <text x="110" y="65" font-family="Arial, sans-serif" font-size="11" fill="#666" font-weight="500">Smart Environmental Monitoring</text>
@@ -533,6 +506,8 @@
         </div>
 
         <form id="configForm">
+            <!-- Device Info -->
+            <div class="section-title">📱 Device Information</div>
             <div class="form-group">
                 <label for="nfcId">🏷️ EcoNFC Device ID</label>
                 <input type="text" id="nfcId" placeholder="ID unik perangkat EcoNFC yang terdeteksi" readonly>
@@ -542,11 +517,15 @@
                 <label for="deviceName">🌱 Nama Lokasi Monitoring</label>
                 <input type="text" id="deviceName" placeholder="Contoh: Limbah-Pabrik-Tekstil-A1" required>
             </div>
-            
+
+            <hr class="section-divider">
+
+            <!-- WiFi Configuration -->
+            <div class="section-title">📶 WiFi Configuration</div>
             <div class="config-grid">
                 <div class="form-group">
-                    <label for="wifi">📶 SSID WiFi</label>
-                    <input type="text" id="wifi" class="input-icon wifi-icon" placeholder="Nama jaringan WiFi" required>
+                    <label for="wifi">📡 SSID WiFi</label>
+                    <input type="text" id="wifi" placeholder="Nama jaringan WiFi" required>
                 </div>
                 
                 <div class="form-group">
@@ -555,27 +534,84 @@
                 </div>
             </div>
 
-            <div class="config-grid">
+            <hr class="section-divider">
+
+            <!-- Protocol Configuration -->
+            <div class="section-title">🌐 Protocol Configuration</div>
+            <div class="form-group">
+                <label for="protocol">🔌 Communication Protocol</label>
+                <select id="protocol" required>
+                    <option value="">Pilih protokol komunikasi</option>
+                    <option value="MQTT">MQTT - IoT Messaging (Port 1883)</option>
+                    <option value="MQTTS">MQTTS - Secure MQTT (Port 8883)</option>
+                    <option value="HTTP">HTTP - Web API (Port 80)</option>
+                    <option value="HTTPS">HTTPS - Secure Web API (Port 443)</option>
+                </select>
+                <div id="protocolInfo" class="protocol-info hidden"></div>
+            </div>
+
+            <!-- Server Configuration -->
+            <div class="config-grid-three">
                 <div class="form-group">
                     <label for="serverUrl">☁️ Server/Broker Address</label>
-                    <input type="text" id="serverUrl" class="input-icon server-icon" placeholder="broker.hivemq.com atau 192.168.1.100" required>
-                    <span class="input-hint">Format: hostname, IP, atau URL lengkap (dengan/tanpa protokol)</span>
-                    <div class="protocol-toggle">
-                        <input type="checkbox" id="useProtocol">
-                        <label for="useProtocol">🔒 Gunakan protokol (http:// atau https://)</label>
-                    </div>
+                    <input type="text" id="serverUrl" placeholder="broker.hivemq.com atau 192.168.1.100" required>
+                    <span class="input-hint">Hostname atau IP address (tanpa protokol)</span>
                 </div>
                 
                 <div class="form-group">
-                    <label for="serverPort">🔌 Port Server</label>
-                    <input type="number" id="serverPort" placeholder="80, 443, 1883, 8883, dll" min="1" max="65535">
-                    <span class="input-hint">Opsional - kosongkan untuk default port</span>
+                    <label for="serverPort">🔌 Port</label>
+                    <input type="number" id="serverPort" placeholder="Auto" min="1" max="65535">
+                    <span class="input-hint">Auto-fill berdasarkan protokol</span>
                 </div>
             </div>
 
+            <!-- MQTT Specific Fields -->
+            <div id="mqttFields" class="hidden">
+                <div class="section-title">📨 MQTT Configuration</div>
+                <div class="config-grid">
+                    <div class="form-group">
+                        <label for="mqttUsername">👤 MQTT Username</label>
+                        <input type="text" id="mqttUsername" placeholder="Username (opsional)">
+                        <span class="input-hint">Kosongkan jika tidak ada autentikasi</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="mqttPassword">🔑 MQTT Password</label>
+                        <input type="password" id="mqttPassword" placeholder="Password (opsional)">
+                        <span class="input-hint">Kosongkan jika tidak ada autentikasi</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="mqttTopic">📬 MQTT Topic</label>
+                    <input type="text" id="mqttTopic" placeholder="econfc/sensor/data">
+                    <span class="input-hint">Contoh: econfc/sensor/data atau econfc/device/{deviceId}</span>
+                </div>
+            </div>
+
+            <!-- HTTP Specific Fields -->
+            <div id="httpFields" class="hidden">
+                <div class="section-title">🌐 HTTP/HTTPS Configuration</div>
+                <div class="form-group">
+                    <label for="apiEndpoint">🎯 API Endpoint</label>
+                    <input type="text" id="apiEndpoint" placeholder="/api/sensor/data">
+                    <span class="input-hint">Contoh: /api/sensor/data atau /v1/readings</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="apiKey">🔐 API Key</label>
+                    <input type="text" id="apiKey" placeholder="API Key (opsional)">
+                    <span class="input-hint">Kosongkan jika tidak memerlukan autentikasi</span>
+                </div>
+            </div>
+
+            <hr class="section-divider">
+
+            <!-- Sensor Configuration -->
+            <div class="section-title">🧪 Sensor Configuration</div>
             <div class="config-grid">
                 <div class="form-group">
-                    <label for="sensorType">🧪 Jenis Monitoring Lingkungan</label>
+                    <label for="sensorType">🔬 Jenis Monitoring Lingkungan</label>
                     <select id="sensorType" required>
                         <option value="">Pilih parameter monitoring</option>
                         <option value="water_quality">Kualitas Air & pH Limbah</option>
@@ -593,9 +629,9 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="interval">🔋 Interval Hemat Daya</label>
-                    <input type="number" id="interval" placeholder="Contoh: 60000 untuk 1 menit" min="1000" required>
-                    <span class="input-hint">Masukkan interval dalam milidetik (1000 = 1 detik). Contoh: 60000 = 1 menit, 300000 = 5 menit</span>
+                    <label for="interval">⏱️ Interval Hemat Daya (ms)</label>
+                    <input type="number" id="interval" placeholder="60000" min="1000" required>
+                    <span class="input-hint">60000 = 1 menit, 300000 = 5 menit</span>
                 </div>
             </div>
 
@@ -643,12 +679,48 @@
         let nfcData = '';
         let isProcessing = false;
 
+        const protocolDefaults = {
+            'MQTT': { port: 1883, info: '🔵 MQTT - Lightweight messaging protocol untuk IoT. Port default: 1883. Tidak terenkripsi.' },
+            'MQTTS': { port: 8883, info: '🟢 MQTTS - MQTT dengan TLS/SSL encryption. Port default: 8883. Koneksi aman dan terenkripsi.' },
+            'HTTP': { port: 80, info: '🟡 HTTP - Standard web protocol. Port default: 80. Tidak terenkripsi.' },
+            'HTTPS': { port: 443, info: '🟢 HTTPS - HTTP dengan TLS/SSL encryption. Port default: 443. Koneksi aman dan terenkripsi.' }
+        };
+
         function showMessage(elementId, message, type = 'info') {
             const messageElement = document.getElementById(elementId);
             messageElement.innerHTML = message;
             messageElement.className = `message ${type}`;
             messageElement.style.display = 'block';
         }
+
+        function updateProtocolFields() {
+            const protocol = document.getElementById('protocol').value;
+            const mqttFields = document.getElementById('mqttFields');
+            const httpFields = document.getElementById('httpFields');
+            const portInput = document.getElementById('serverPort');
+            const protocolInfo = document.getElementById('protocolInfo');
+
+            if (!protocol) {
+                mqttFields.classList.add('hidden');
+                httpFields.classList.add('hidden');
+                protocolInfo.classList.add('hidden');
+                return;
+            }
+
+            portInput.value = protocolDefaults[protocol].port;
+            protocolInfo.textContent = protocolDefaults[protocol].info;
+            protocolInfo.classList.remove('hidden');
+
+            if (protocol === 'MQTT' || protocol === 'MQTTS') {
+                mqttFields.classList.remove('hidden');
+                httpFields.classList.add('hidden');
+            } else if (protocol === 'HTTP' || protocol === 'HTTPS') {
+                mqttFields.classList.add('hidden');
+                httpFields.classList.remove('hidden');
+            }
+        }
+
+        document.getElementById('protocol').addEventListener('change', updateProtocolFields);
 
         async function detectNFC() {
             if (isProcessing) return;
@@ -694,8 +766,15 @@
                             document.getElementById('deviceName').value = config.deviceName || '';
                             document.getElementById('wifi').value = config.wifi || '';
                             document.getElementById('wifiPassword').value = config.wifiPassword || '';
+                            document.getElementById('protocol').value = config.protocol || '';
+                            updateProtocolFields();
                             document.getElementById('serverUrl').value = config.serverUrl || '';
                             document.getElementById('serverPort').value = config.serverPort || '';
+                            document.getElementById('mqttUsername').value = config.mqttUsername || '';
+                            document.getElementById('mqttPassword').value = config.mqttPassword || '';
+                            document.getElementById('mqttTopic').value = config.mqttTopic || '';
+                            document.getElementById('apiEndpoint').value = config.apiEndpoint || '';
+                            document.getElementById('apiKey').value = config.apiKey || '';
                             document.getElementById('sensorType').value = config.sensorType || '';
                             document.getElementById('interval').value = config.interval || '';
                             document.getElementById('deviceStatus').value = config.deviceStatus || '';
@@ -740,6 +819,7 @@
             saveBtn.innerHTML = '<span class="loading-spinner"></span>Mengkonfigurasi EcoNFC...';
             saveBtn.disabled = true;
 
+            const protocol = document.getElementById('protocol').value;
             const serverPortValue = document.getElementById('serverPort').value.trim();
             
             const formData = {
@@ -747,19 +827,36 @@
                 deviceName: document.getElementById('deviceName').value.trim(),
                 wifi: document.getElementById('wifi').value.trim(),
                 wifiPassword: document.getElementById('wifiPassword').value,
+                protocol: protocol,
                 serverUrl: document.getElementById('serverUrl').value.trim(),
                 sensorType: document.getElementById('sensorType').value,
                 interval: parseInt(document.getElementById('interval').value),
                 deviceStatus: document.getElementById('deviceStatus').value,
                 timestamp: new Date().toISOString(),
-                version: '1.0'
+                version: '2.0'
             };
 
             if (serverPortValue) {
                 formData.serverPort = parseInt(serverPortValue);
             }
 
-            const requiredFields = ['deviceName', 'wifi', 'wifiPassword', 'serverUrl', 'sensorType', 'interval', 'deviceStatus'];
+            if (protocol === 'MQTT' || protocol === 'MQTTS') {
+                const username = document.getElementById('mqttUsername').value.trim();
+                const password = document.getElementById('mqttPassword').value.trim();
+                const topic = document.getElementById('mqttTopic').value.trim();
+                
+                if (username) formData.mqttUsername = username;
+                if (password) formData.mqttPassword = password;
+                if (topic) formData.mqttTopic = topic;
+            } else if (protocol === 'HTTP' || protocol === 'HTTPS') {
+                const endpoint = document.getElementById('apiEndpoint').value.trim();
+                const apiKey = document.getElementById('apiKey').value.trim();
+                
+                if (endpoint) formData.apiEndpoint = endpoint;
+                if (apiKey) formData.apiKey = apiKey;
+            }
+
+            const requiredFields = ['deviceName', 'wifi', 'wifiPassword', 'protocol', 'serverUrl', 'sensorType', 'interval', 'deviceStatus'];
             for (const field of requiredFields) {
                 if (!formData[field]) {
                     showMessage('statusMessage', `❌ Field "${field}" wajib diisi!`, 'error');
@@ -770,14 +867,6 @@
                 }
             }
 
-            let serverAddress = formData.serverUrl;
-            const useProtocol = document.getElementById('useProtocol').checked;
-            const hasProtocol = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//i.test(serverAddress);
-            
-            if (useProtocol && !hasProtocol) {
-                formData.serverUrl = `https://${serverAddress}`;
-            }
-            
             if (formData.serverPort && (formData.serverPort < 1 || formData.serverPort > 65535)) {
                 showMessage('statusMessage', '❌ Port harus antara 1-65535!', 'error');
                 isProcessing = false;
@@ -797,33 +886,30 @@
                     }]
                 });
 
-                let protocolInfo = 'Raw Address';
-                if (formData.serverUrl.includes('://')) {
-                    const protocol = formData.serverUrl.split('://')[0];
-                    const protocolMap = {
-                        'https': 'HTTPS (Secure)',
-                        'http': 'HTTP',
-                        'mqtt': 'MQTT',
-                        'mqtts': 'MQTTS (Secure)',
-                        'ws': 'WebSocket',
-                        'wss': 'WebSocket Secure',
-                        'tcp': 'TCP',
-                        'udp': 'UDP',
-                        'serial': 'Serial'
-                    };
-                    protocolInfo = protocolMap[protocol] || protocol.toUpperCase();
-                }
-                
                 const portInfo = formData.serverPort ? `:${formData.serverPort}` : '';
+                let protocolDetails = '';
+                
+                if (protocol === 'MQTT' || protocol === 'MQTTS') {
+                    protocolDetails = `📬 Topic: ${formData.mqttTopic || 'default'}<br>`;
+                    if (formData.mqttUsername) {
+                        protocolDetails += `👤 Username: ${formData.mqttUsername}<br>`;
+                    }
+                } else if (protocol === 'HTTP' || protocol === 'HTTPS') {
+                    protocolDetails = `🎯 Endpoint: ${formData.apiEndpoint || 'default'}<br>`;
+                    if (formData.apiKey) {
+                        protocolDetails += `🔐 API Key: ${formData.apiKey.substring(0, 8)}...<br>`;
+                    }
+                }
                 
                 showMessage('statusMessage', 
                     `🌱 Konfigurasi EcoNFC berhasil disimpan!<br>
                     📍 Lokasi: ${formData.deviceName}<br>
                     📶 WiFi: ${formData.wifi}<br>
+                    🔌 Protokol: ${protocol}<br>
                     ☁️ Server: ${formData.serverUrl}${portInfo}<br>
-                    🔐 Protokol: ${protocolInfo}<br>
+                    ${protocolDetails}
                     🧪 Monitoring: ${document.getElementById('sensorType').selectedOptions[0].textContent}<br>
-                    🔋 Interval: ${formData.interval}ms (${formData.interval/1000}s)<br>
+                    ⏱️ Interval: ${formData.interval}ms (${formData.interval/1000}s)<br>
                     ⚡ Status: ${document.getElementById('deviceStatus').selectedOptions[0].textContent}`, 'success');
 
                 console.log("Konfigurasi tersimpan:", formData);
