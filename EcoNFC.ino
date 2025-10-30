@@ -4,13 +4,14 @@
 #include <WiFiClientSecure.h>
 #include <Adafruit_PN532.h>
 #include <ArduinoJson.h>
+#include <PubSubClient.h>
 
 #define SDA_PIN 21
 #define SCL_PIN 22
 
 Adafruit_PN532 nfc(SDA_PIN, SCL_PIN);
 
-// Struktur untuk menyimpan konfigurasi
+// Struktur konfigurasi
 struct NFCConfig {
     String nfcId;
     String deviceName;
@@ -23,34 +24,46 @@ struct NFCConfig {
     String deviceStatus;
     String timestamp;
     String version;
+    String protocol;
+    String mqttTopic;
+    String mqttUsername;
+    String mqttPassword;
+    String apiKey;
+    String endpoint;
 };
 
-// Variabel global
 NFCConfig currentConfig;
 String lastRawData = "";
 String lastUID = "";
 bool tagPresent = false;
 bool wifiConnected = false;
-bool serverConnected = false;
 bool configurationValid = false;
 
-// Timing variabel
+// Protocol clients
+WiFiClient wifiClient;
+WiFiClientSecure secureClient;
+PubSubClient mqttClient(wifiClient);
+
+// Timing
 unsigned long lastCheckTime = 0;
 unsigned long lastReleaseTime = 0;
 unsigned long lastWifiCheck = 0;
-unsigned long lastServerCheck = 0;
 unsigned long lastSensorSend = 0;
+unsigned long lastReconnectMQTT = 0;
+unsigned long lastHeartbeat = 0;
 
 // Konfigurasi timing
-const unsigned long CHECK_INTERVAL = 2000;     // Cek NFC setiap 2 detik
-const unsigned long RELEASE_INTERVAL = 8000;   // Release field setiap 8 detik
-const unsigned long RELEASE_DURATION = 1500;   // Release selama 1.5 detik
-const unsigned long WIFI_CHECK_INTERVAL = 10000;  // Cek WiFi setiap 10 detik
-const unsigned long SERVER_CHECK_INTERVAL = 1000; // Cek server setiap 15 detik
-const unsigned long DEFAULT_SENSOR_INTERVAL = 5000; // Default interval jika tidak ada config
-const unsigned long WIFI_TIMEOUT = 20000;      // Timeout WiFi 20 detik
+const unsigned long CHECK_INTERVAL = 2000;
+const unsigned long RELEASE_INTERVAL = 8000;
+const unsigned long RELEASE_DURATION = 1500;
+const unsigned long WIFI_CHECK_INTERVAL = 10000;
+const unsigned long DEFAULT_SENSOR_INTERVAL = 5000;
+const unsigned long WIFI_TIMEOUT = 20000;
+const unsigned long MQTT_RECONNECT_INTERVAL = 5000;
+const unsigned long HEARTBEAT_INTERVAL = 20000;
 
-// Fungsi untuk mendapatkan interval sensor yang aktif
+// ============ SENSOR FUNCTIONS ============
+
 unsigned long getSensorInterval() {
     if (configurationValid && currentConfig.interval > 0) {
         return currentConfig.interval;
@@ -58,72 +71,438 @@ unsigned long getSensorInterval() {
     return DEFAULT_SENSOR_INTERVAL;
 }
 
-// Fungsi untuk memparsing data JSON dan mengisi struktur konfigurasi
+void readSensorData(float &temp, float &hum) {
+    temp = random(250, 350) / 10.0;
+    hum = random(600, 900) / 10.0;
+}
+
+String createSensorJSON(float temp, float hum) {
+    JsonDocument jsonDoc;
+    jsonDoc["temp"] = round(temp * 10) / 10.0;
+    jsonDoc["hum"] = round(hum * 10) / 10.0;
+    jsonDoc["deviceId"] = currentConfig.nfcId;
+    jsonDoc["deviceName"] = currentConfig.deviceName;
+    jsonDoc["sensorType"] = currentConfig.sensorType;
+    jsonDoc["interval"] = currentConfig.interval;
+    jsonDoc["protocol"] = currentConfig.protocol;
+    jsonDoc["timestamp"] = millis() / 1000;
+    jsonDoc["uptime"] = millis() / 1000;
+    
+    String json;
+    serializeJson(jsonDoc, json);
+    return json;
+}
+
+// ============ HTTP/HTTPS FUNCTIONS ============
+
+bool sendDataViaHTTP(String jsonData, bool useHTTPS = false) {
+    HTTPClient http;
+    
+    String fullUrl = currentConfig.serverUrl;
+    
+    // Add protocol if missing
+    if (!fullUrl.startsWith("http://") && !fullUrl.startsWith("https://")) {
+        fullUrl = String(useHTTPS ? "https://" : "http://") + fullUrl;
+    }
+    
+    if (currentConfig.serverPort > 0) {
+        // Only add port if not already in URL
+        if (fullUrl.indexOf("://") > 0) {
+            int colonPos = fullUrl.lastIndexOf(":");
+            int slashPos = fullUrl.indexOf("/", fullUrl.indexOf("://") + 3);
+            
+            // Check if port is already specified
+            if (colonPos < fullUrl.indexOf("://") || (slashPos > 0 && colonPos > slashPos)) {
+                // No port specified, add it
+                if (slashPos > 0) {
+                    fullUrl = fullUrl.substring(0, slashPos) + ":" + String(currentConfig.serverPort) + fullUrl.substring(slashPos);
+                } else {
+                    fullUrl += ":" + String(currentConfig.serverPort);
+                }
+            }
+        }
+    }
+    
+    if (currentConfig.endpoint.length() > 0) {
+        if (!fullUrl.endsWith("/") && !currentConfig.endpoint.startsWith("/")) {
+            fullUrl += "/";
+        }
+        fullUrl += currentConfig.endpoint;
+    } else {
+        if (!fullUrl.endsWith("/")) fullUrl += "/";
+        fullUrl += currentConfig.deviceName;
+    }
+    
+    Serial.println("\n📡 Sending via " + String(useHTTPS ? "HTTPS" : "HTTP"));
+    Serial.println("🔗 URL: " + fullUrl);
+    
+    bool success = false;
+    
+    if (useHTTPS) {
+        secureClient.setInsecure();
+        if (http.begin(secureClient, fullUrl)) {
+            http.addHeader("Content-Type", "application/json");
+            if (currentConfig.apiKey.length() > 0) {
+                http.addHeader("Authorization", "Bearer " + currentConfig.apiKey);
+            }
+            http.setTimeout(10000);
+            
+            int httpResponseCode = http.POST(jsonData);
+            
+            if (httpResponseCode > 0) {
+                Serial.println("✅ Response: " + String(httpResponseCode));
+                Serial.println("📥 " + http.getString());
+                success = true;
+            } else {
+                Serial.println("❌ Error: " + String(httpResponseCode));
+            }
+            http.end();
+        }
+    } else {
+        if (http.begin(wifiClient, fullUrl)) {
+            http.addHeader("Content-Type", "application/json");
+            if (currentConfig.apiKey.length() > 0) {
+                http.addHeader("Authorization", "Bearer " + currentConfig.apiKey);
+            }
+            http.setTimeout(10000);
+            
+            int httpResponseCode = http.POST(jsonData);
+            
+            if (httpResponseCode > 0) {
+                Serial.println("✅ Response: " + String(httpResponseCode));
+                Serial.println("📥 " + http.getString());
+                success = true;
+            } else {
+                Serial.println("❌ Error: " + String(httpResponseCode));
+            }
+            http.end();
+        }
+    }
+    
+    return success;
+}
+
+// ============ MQTT FUNCTIONS ============
+
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+    Serial.print("📨 MQTT [");
+    Serial.print(topic);
+    Serial.print("]: ");
+    
+    String message = "";
+    for (unsigned int i = 0; i < length; i++) {
+        message += (char)payload[i];
+    }
+    Serial.println(message);
+}
+
+bool reconnectMQTT() {
+    unsigned long now = millis();
+    
+    // Throttle reconnection attempts
+    if (now - lastReconnectMQTT < MQTT_RECONNECT_INTERVAL) {
+        return false;
+    }
+    lastReconnectMQTT = now;
+    
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("❌ WiFi not connected for MQTT");
+        return false;
+    }
+    
+    if (mqttClient.connected()) {
+        return true;
+    }
+    
+    // Clean broker URL
+    String broker = currentConfig.serverUrl;
+    broker.replace("mqtt://", "");
+    broker.replace("mqtts://", "");
+    broker.replace("http://", "");
+    broker.replace("https://", "");
+    
+    // Remove any port from broker URL
+    int colonPos = broker.indexOf(":");
+    if (colonPos > 0) {
+        broker = broker.substring(0, colonPos);
+    }
+    
+    Serial.println("\n⚡ Connecting to MQTT...");
+    Serial.println("🌐 Broker: " + broker + ":" + String(currentConfig.serverPort));
+    
+    // Set MQTT server - CRITICAL FIX!
+    mqttClient.setServer(broker.c_str(), currentConfig.serverPort);
+    
+    // Generate unique client ID
+    String clientId = "ESP32-" + currentConfig.nfcId + "-" + String((uint32_t)ESP.getEfuseMac(), HEX);
+    Serial.println("🆔 Client: " + clientId);
+    
+    // Setup MQTT topics
+    String statusTopic = currentConfig.mqttTopic.length() > 0 ? 
+                         currentConfig.mqttTopic + "/status" : 
+                         "sensors/" + currentConfig.deviceName + "/status";
+    
+    String cmdTopic = currentConfig.mqttTopic.length() > 0 ? 
+                      currentConfig.mqttTopic + "/cmd" : 
+                      "sensors/" + currentConfig.deviceName + "/cmd";
+    
+    bool connected = false;
+    
+    // Connect with Last Will Testament
+    if (currentConfig.mqttUsername.length() > 0 && currentConfig.mqttPassword.length() > 0) {
+        Serial.println("👤 Auth: " + currentConfig.mqttUsername);
+        connected = mqttClient.connect(
+            clientId.c_str(),
+            currentConfig.mqttUsername.c_str(),
+            currentConfig.mqttPassword.c_str(),
+            statusTopic.c_str(),
+            1,
+            true,
+            "offline"
+        );
+    } else {
+        Serial.println("🔓 No auth (Public broker)");
+        connected = mqttClient.connect(
+            clientId.c_str(),
+            statusTopic.c_str(),
+            1,
+            true,
+            "offline"
+        );
+    }
+    
+    if (connected) {
+        Serial.println("✅ MQTT Connected!");
+        
+        // Publish online status
+        mqttClient.publish(statusTopic.c_str(), "online", true);
+        
+        // Subscribe to command topic
+        if (mqttClient.subscribe(cmdTopic.c_str())) {
+            Serial.println("📬 Subscribed: " + cmdTopic);
+        }
+        
+        // Publish initial info
+        JsonDocument doc;
+        doc["device"] = currentConfig.deviceName;
+        doc["id"] = currentConfig.nfcId;
+        doc["sensor"] = currentConfig.sensorType;
+        doc["interval"] = currentConfig.interval;
+        doc["ip"] = WiFi.localIP().toString();
+        
+        char buffer[256];
+        serializeJson(doc, buffer);
+        
+        String infoTopic = currentConfig.mqttTopic.length() > 0 ? 
+                          currentConfig.mqttTopic + "/info" : 
+                          "sensors/" + currentConfig.deviceName + "/info";
+        
+        mqttClient.publish(infoTopic.c_str(), buffer, true);
+        
+        return true;
+    } else {
+        int state = mqttClient.state();
+        Serial.print("❌ Failed, rc=");
+        Serial.print(state);
+        Serial.print(" (");
+        
+        switch(state) {
+            case -4: Serial.print("TIMEOUT"); break;
+            case -3: Serial.print("CONNECTION_LOST"); break;
+            case -2: Serial.print("CONNECT_FAILED"); break;
+            case -1: Serial.print("DISCONNECTED"); break;
+            case 1: Serial.print("BAD_PROTOCOL"); break;
+            case 2: Serial.print("BAD_CLIENT_ID"); break;
+            case 3: Serial.print("UNAVAILABLE"); break;
+            case 4: Serial.print("BAD_CREDENTIALS"); break;
+            case 5: Serial.print("UNAUTHORIZED"); break;
+            default: Serial.print("UNKNOWN");
+        }
+        Serial.println(")");
+        
+        return false;
+    }
+}
+
+bool sendDataViaMQTT(String jsonData) {
+    if (!mqttClient.connected()) {
+        Serial.println("⚠️ MQTT disconnected, reconnecting...");
+        if (!reconnectMQTT()) {
+            return false;
+        }
+    }
+    
+    String topic = currentConfig.mqttTopic.length() > 0 ? 
+                   currentConfig.mqttTopic : 
+                   "sensors/" + currentConfig.deviceName;
+    
+    Serial.println("\n📡 MQTT Publish");
+    Serial.println("📬 Topic: " + topic);
+    
+    bool published = mqttClient.publish(topic.c_str(), jsonData.c_str(), true);
+    
+    if (published) {
+        Serial.println("✅ Published");
+        return true;
+    } else {
+        Serial.println("❌ Publish failed");
+        return false;
+    }
+}
+
+// ============ SERIAL OUTPUT ============
+
+bool sendDataViaSerial(String jsonData) {
+    Serial.println("\n📡 Serial Output");
+    Serial.println("📦 " + jsonData);
+    return true;
+}
+
+// ============ UNIFIED SEND FUNCTION ============
+
+bool sendSensorData() {
+    if (!wifiConnected && currentConfig.protocol != "SERIAL") {
+        Serial.println("❌ WiFi not connected");
+        return false;
+    }
+    
+    float temp, hum;
+    readSensorData(temp, hum);
+    String jsonData = createSensorJSON(temp, hum);
+    
+    Serial.println("\n📊 === SENSOR DATA ===");
+    Serial.println("🌡️ Temp: " + String(temp, 1) + "°C");
+    Serial.println("💧 Hum: " + String(hum, 1) + "%");
+    Serial.println("📋 Protocol: " + currentConfig.protocol);
+    
+    bool success = false;
+    String proto = currentConfig.protocol;
+    proto.toUpperCase();
+    
+    if (proto == "HTTP") {
+        success = sendDataViaHTTP(jsonData, false);
+    } 
+    else if (proto == "HTTPS") {
+        success = sendDataViaHTTP(jsonData, true);
+    }
+    else if (proto == "MQTT" || proto == "MQTTS") {
+        success = sendDataViaMQTT(jsonData);
+    }
+    else if (proto == "SERIAL") {
+        success = sendDataViaSerial(jsonData);
+    }
+    else {
+        Serial.println("⚠️ Unknown protocol: " + proto);
+        Serial.println("💡 Valid: HTTP, HTTPS, MQTT, MQTTS, SERIAL");
+        return false;
+    }
+    
+    if (success) {
+        Serial.println("✅ Sent via " + currentConfig.protocol);
+    } else {
+        Serial.println("❌ Failed via " + currentConfig.protocol);
+    }
+    
+    return success;
+}
+
+// ============ MQTT HEARTBEAT ============
+
+void publishHeartbeat() {
+    if (!mqttClient.connected()) return;
+    
+    String statusTopic = currentConfig.mqttTopic.length() > 0 ? 
+                         currentConfig.mqttTopic + "/status" : 
+                         "sensors/" + currentConfig.deviceName + "/status";
+    
+    JsonDocument doc;
+    doc["type"] = "heartbeat";
+    doc["uptime"] = millis() / 1000;
+    doc["rssi"] = WiFi.RSSI();
+    doc["ip"] = WiFi.localIP().toString();
+    doc["free_heap"] = ESP.getFreeHeap();
+    
+    char buffer[200];
+    serializeJson(doc, buffer);
+    
+    if (mqttClient.publish(statusTopic.c_str(), buffer)) {
+        Serial.println("💓 Heartbeat sent");
+    }
+}
+
+// ============ NFC FUNCTIONS ============
+
 bool parseJSONConfig(const char* jsonData) {
-    DynamicJsonDocument doc(1024);
+    JsonDocument doc;
     DeserializationError error = deserializeJson(doc, jsonData);
 
     if (error) {
-        Serial.print(F("❌ JSON parsing failed: "));
+        Serial.print(F("❌ JSON parse error: "));
         Serial.println(error.f_str());
         return false;
     }
 
-    // Simpan interval lama untuk perbandingan
-    int oldInterval = currentConfig.interval;
+    currentConfig.nfcId = doc["nfcId"] | "UNKNOWN";
+    currentConfig.deviceName = doc["deviceName"] | "sensor";
+    currentConfig.wifi = doc["wifi"] | "";
+    currentConfig.wifiPassword = doc["wifiPassword"] | "";
+    currentConfig.serverUrl = doc["serverUrl"] | "";
+    currentConfig.serverPort = doc["serverPort"] | 0;
+    currentConfig.sensorType = doc["sensorType"] | "generic";
+    currentConfig.interval = doc["interval"] | DEFAULT_SENSOR_INTERVAL;
+    currentConfig.deviceStatus = doc["deviceStatus"] | "active";
+    currentConfig.timestamp = doc["timestamp"] | "";
+    currentConfig.version = doc["version"] | "1.0";
+    currentConfig.protocol = doc["protocol"] | "HTTP";
+    currentConfig.mqttTopic = doc["mqttTopic"] | "";
+    currentConfig.mqttUsername = doc["mqttUsername"] | "";
+    currentConfig.mqttPassword = doc["mqttPassword"] | "";
+    currentConfig.apiKey = doc["apiKey"] | "";
+    currentConfig.endpoint = doc["endpoint"] | "";
 
-    // Mengisi struktur konfigurasi
-    currentConfig.nfcId = doc["nfcId"].as<String>();
-    currentConfig.deviceName = doc["deviceName"].as<String>();
-    currentConfig.wifi = doc["wifi"].as<String>();
-    currentConfig.wifiPassword = doc["wifiPassword"].as<String>();
-    currentConfig.serverUrl = doc["serverUrl"].as<String>();
-    currentConfig.serverPort = doc["serverPort"].as<int>();
-    currentConfig.sensorType = doc["sensorType"].as<String>();
-    currentConfig.interval = doc["interval"].as<int>();
-    currentConfig.deviceStatus = doc["deviceStatus"].as<String>();
-    currentConfig.timestamp = doc["timestamp"].as<String>();
-    currentConfig.version = doc["version"].as<String>();
-
-    // Validasi data penting
-    if (currentConfig.wifi.length() == 0 || currentConfig.serverUrl.length() == 0) {
-        Serial.println("❌ Critical configuration missing (WiFi SSID or Server URL)");
-        return false;
+    // Validation
+    if (currentConfig.protocol != "SERIAL") {
+        if (currentConfig.wifi.length() == 0) {
+            Serial.println("❌ WiFi SSID required for network protocols");
+            return false;
+        }
+        if (currentConfig.serverUrl.length() == 0) {
+            Serial.println("❌ Server URL required");
+            return false;
+        }
     }
 
-    // Validasi interval
-    if (currentConfig.interval <= 0) {
-        Serial.println("⚠️ Invalid interval value, using default: " + String(DEFAULT_SENSOR_INTERVAL) + "ms");
-        currentConfig.interval = DEFAULT_SENSOR_INTERVAL;
+    // Auto-set default ports
+    if (currentConfig.serverPort == 0) {
+        if (currentConfig.protocol == "HTTP") currentConfig.serverPort = 80;
+        else if (currentConfig.protocol == "HTTPS") currentConfig.serverPort = 443;
+        else if (currentConfig.protocol == "MQTT") currentConfig.serverPort = 1883;
+        else if (currentConfig.protocol == "MQTTS") currentConfig.serverPort = 8883;
     }
 
-    // Cek apakah interval berubah
-    if (oldInterval != currentConfig.interval && oldInterval > 0) {
-        Serial.println("🔄 Sensor interval changed from " + String(oldInterval) + "ms to " + String(currentConfig.interval) + "ms");
-        // Reset timer untuk segera menerapkan interval baru
-        lastSensorSend = 0;
+    Serial.println("\n=== 📋 CONFIG LOADED ===");
+    Serial.println("🆔 ID: " + currentConfig.nfcId);
+    Serial.println("📱 Device: " + currentConfig.deviceName);
+    Serial.println("📡 WiFi: " + currentConfig.wifi);
+    Serial.println("🌐 Server: " + currentConfig.serverUrl + ":" + String(currentConfig.serverPort));
+    Serial.println("📊 Sensor: " + currentConfig.sensorType);
+    Serial.println("⏱️ Interval: " + String(currentConfig.interval) + "ms");
+    Serial.println("📡 Protocol: " + currentConfig.protocol);
+    
+    if (currentConfig.protocol == "MQTT" || currentConfig.protocol == "MQTTS") {
+        Serial.println("📬 Topic: " + (currentConfig.mqttTopic.length() > 0 ? currentConfig.mqttTopic : "sensors/" + currentConfig.deviceName));
+        if (currentConfig.mqttUsername.length() > 0) {
+            Serial.println("👤 User: " + currentConfig.mqttUsername);
+        } else {
+            Serial.println("🔓 Public broker (no auth)");
+        }
     }
-
-    // Tampilkan konfigurasi
-    Serial.println("\n=== 📋 NFC Configuration Loaded ===");
-    Serial.println("🆔 NFC ID: " + currentConfig.nfcId);
-    Serial.println("📱 Device Name: " + currentConfig.deviceName);
-    Serial.println("📡 WiFi SSID: " + currentConfig.wifi);
-    Serial.print("🔐 WiFi Password: ");
-    Serial.println(currentConfig.wifiPassword.length() > 0 ? "***" : "No password");
-    Serial.println("🌐 Server URL: " + currentConfig.serverUrl);
-    Serial.println("🔌 Server Port: " + String(currentConfig.serverPort));
-    Serial.println("📊 Sensor Type: " + currentConfig.sensorType);
-    Serial.println("⏱️ Sensor Interval: " + String(currentConfig.interval) + "ms (" + String(currentConfig.interval/1000.0, 1) + "s)");
-    Serial.println("🔄 Device Status: " + currentConfig.deviceStatus);
-    Serial.println("📅 Timestamp: " + currentConfig.timestamp);
-    Serial.println("🏷️ Version: " + currentConfig.version);
-    Serial.println("=====================================\n");
+    
+    Serial.println("========================\n");
 
     return true;
 }
 
-// Fungsi untuk membuat UID string
 String getUIDString(uint8_t uid[], uint8_t uidLength) {
     String uidStr = "";
     for (uint8_t i = 0; i < uidLength; i++) {
@@ -135,36 +514,25 @@ String getUIDString(uint8_t uid[], uint8_t uidLength) {
     return uidStr;
 }
 
-// Fungsi untuk release NFC field
 void releaseNFCField() {
-    Serial.println("📱 RELEASING NFC FIELD - Smartphone access enabled!");
-    
-    // Reset dan reinitialize untuk release field
+    Serial.println("\n📱 RELEASE NFC FIELD");
     nfc.begin();
-    
-    Serial.println("⏳ Field released for " + String(RELEASE_DURATION/1000) + " seconds...");
     delay(RELEASE_DURATION);
-    
-    // Reconfigure
     nfc.SAMConfig();
-    
-    Serial.println("🔄 NFC field reactivated");
+    Serial.println("🔄 Field reactivated");
     lastReleaseTime = millis();
 }
 
-// Fungsi untuk membaca data NTAG dengan metode yang lebih robust
 String readNTAGData() {
     String allData = "";
     uint8_t data[4];
     int consecutiveFailures = 0;
     int consecutiveZeros = 0;
     
-    // Mulai dari page 4 (user data area untuk NTAG)
     for (uint8_t page = 4; page < 231 && consecutiveFailures < 3; page++) {
         if (nfc.ntag2xx_ReadPage(page, data)) {
             consecutiveFailures = 0;
             
-            // Cek apakah semua data adalah 0x00
             bool allZero = true;
             for (int i = 0; i < 4; i++) {
                 if (data[i] != 0x00) {
@@ -175,23 +543,14 @@ String readNTAGData() {
             
             if (allZero) {
                 consecutiveZeros++;
-                if (consecutiveZeros >= 3) {
-                    break; // Stop jika terlalu banyak page kosong berturut-turut
-                }
+                if (consecutiveZeros >= 3) break;
             } else {
                 consecutiveZeros = 0;
-                
-                // Tambahkan data yang valid
                 for (int i = 0; i < 4; i++) {
                     if (data[i] >= 0x20 && data[i] <= 0x7E) {
-                        // Karakter printable ASCII
                         allData += (char)data[i];
                     } else if (data[i] == 0x00) {
-                        // Null terminator, berhenti
                         break;
-                    } else {
-                        // Non-printable character, tambahkan sebagai raw data
-                        allData += (char)data[i];
                     }
                 }
             }
@@ -203,13 +562,10 @@ String readNTAGData() {
     return allData;
 }
 
-// Fungsi untuk mencari dan ekstrak JSON dari raw data
 String extractJSON(String rawData) {
-    // Cari posisi awal JSON
     int jsonStart = rawData.indexOf('{');
     if (jsonStart == -1) return "";
     
-    // Cari posisi akhir JSON dengan menghitung bracket
     int braceCount = 0;
     int jsonEnd = -1;
     
@@ -232,30 +588,29 @@ String extractJSON(String rawData) {
     return "";
 }
 
-// Fungsi untuk menghubungkan ke WiFi
 bool connectToWiFi() {
     if (currentConfig.wifi.length() == 0) {
-        Serial.println("❌ No WiFi SSID configured");
+        Serial.println("❌ No WiFi SSID");
         return false;
     }
     
-    Serial.println("\n🔄 Attempting WiFi connection...");
+    Serial.println("\n🔄 WiFi connecting...");
     Serial.println("📡 SSID: " + currentConfig.wifi);
     
-    // Disconnect jika sudah terhubung
     if (WiFi.status() == WL_CONNECTED) {
         WiFi.disconnect();
         delay(1000);
     }
     
-    // Mulai koneksi
+    WiFi.mode(WIFI_STA);
+    WiFi.setSleep(false);
+    
     if (currentConfig.wifiPassword.length() > 0) {
         WiFi.begin(currentConfig.wifi.c_str(), currentConfig.wifiPassword.c_str());
     } else {
         WiFi.begin(currentConfig.wifi.c_str());
     }
     
-    // Wait untuk koneksi dengan timeout
     unsigned long startTime = millis();
     int dots = 0;
     
@@ -263,317 +618,171 @@ bool connectToWiFi() {
         delay(500);
         Serial.print(".");
         dots++;
-        if (dots >= 10) {
-            Serial.println();
-            dots = 0;
-        }
+        if (dots % 10 == 0) Serial.println();
     }
     
     if (WiFi.status() == WL_CONNECTED) {
-        Serial.println("\n✅ WiFi connected successfully!");
-        Serial.println("📶 IP Address: " + WiFi.localIP().toString());
-        Serial.println("📡 Signal Strength: " + String(WiFi.RSSI()) + " dBm");
+        Serial.println("\n✅ WiFi connected!");
+        Serial.println("📶 IP: " + WiFi.localIP().toString());
+        Serial.println("📡 RSSI: " + String(WiFi.RSSI()) + " dBm");
         wifiConnected = true;
         return true;
     } else {
-        Serial.println("\n❌ WiFi connection failed!");
-        Serial.println("🔍 Status: " + String(WiFi.status()));
+        Serial.println("\n❌ WiFi failed!");
         wifiConnected = false;
         return false;
     }
 }
 
-// Fungsi untuk test koneksi server
-bool testServerConnection() {
-    if (!wifiConnected || currentConfig.serverUrl.length() == 0) {
-        return false;
-    }
-    
-    Serial.println("\n🌐 Testing server connection...");
-    Serial.println("🔗 URL: " + currentConfig.serverUrl + ":" + String(currentConfig.serverPort) +"/" + currentConfig.deviceName);
-    
-    HTTPClient http;
-    String fullUrl = currentConfig.serverUrl;
-    if (currentConfig.serverPort > 0) {
-        fullUrl += ":" + String(currentConfig.serverPort) + "/" + currentConfig.deviceName;
-    }
-    
-    // Test dengan endpoint sederhana
-    http.begin(fullUrl + "/");
-    http.setTimeout(10000);
-    
-    int httpResponseCode = http.GET();
-    
-    if (httpResponseCode > 0) {
-        String response = http.getString();
-        Serial.println("✅ Server connection successful!");
-        // Serial.println("📊 Response Code: " + String(httpResponseCode));
-        // Serial.println("📄 Response: " + response.substring(0, 100) + (response.length() > 100 ? "..." : ""));
-        serverConnected = true;
-        http.end();
-        return true;
-    } else {
-        Serial.println("❌ Server connection failed!");
-        Serial.println("🔍 Error: " + String(httpResponseCode));
-        Serial.println("📝 Error Description: " + http.errorToString(httpResponseCode));
-        serverConnected = false;
-        http.end();
-        return false;
-    }
-}
-
-// Fungsi untuk membaca sensor (simulasi)
-void readSensorData(float &temp, float &hum) {
-    // Simulasi pembacaan sensor suhu dan kelembaban
-    temp = random(250, 350) / 10.0; // suhu antara 25.0 - 35.0°C
-    hum = random(600, 900) / 10.0;  // kelembaban antara 60.0 - 90.0%
-}
-
-// Fungsi untuk mengirim data sensor ke Node-RED
-bool sendSensorDataToNodeRED() {
-    if (!wifiConnected || currentConfig.serverUrl.length() == 0) {
-        Serial.println("❌ WiFi not connected or no server URL configured");
-        return false;
-    }
-    
-    // Baca data sensor
-    float suhu, kelembaban;
-    readSensorData(suhu, kelembaban);
-    
-    HTTPClient http;
-    String fullUrl = currentConfig.serverUrl;
-    if (currentConfig.serverPort > 0) {
-        // fullUrl += ":" + String(currentConfig.serverPort);
-        fullUrl += ":" + String(currentConfig.serverPort) + "/" + currentConfig.deviceName;
-    }
-    
-    // Gunakan endpoint yang sama seperti contoh Node-RED (/esp32)
-    http.begin(fullUrl);
-    http.addHeader("Content-Type", "application/json");
-    
-    // Buat JSON payload sesuai format Node-RED dengan informasi tambahan
-    DynamicJsonDocument jsonDoc(512);
-    jsonDoc["temp"] = String(suhu, 1).toFloat();
-    jsonDoc["hum"] = String(kelembaban, 1).toFloat();
-    jsonDoc["deviceId"] = currentConfig.nfcId;
-    jsonDoc["deviceName"] = currentConfig.deviceName;
-    jsonDoc["sensorType"] = currentConfig.sensorType;
-    jsonDoc["interval"] = currentConfig.interval;
-    jsonDoc["timestamp"] = millis();
-    
-    String json;
-    serializeJson(jsonDoc, json);
-    
-    Serial.print("📤 Kirim data (interval " + String(currentConfig.interval) + "ms): ");
-    Serial.println(json);
-    
-    int httpResponseCode = http.POST(json);
-    
-    if (httpResponseCode > 0) {
-        String response = http.getString();
-        Serial.print("✅ Response code: ");
-        Serial.println(httpResponseCode);
-        Serial.print("📥 Response: ");
-        Serial.println(response);
-        http.end();
-        return true;
-    } else {
-        Serial.print("❌ HTTP error: ");
-        Serial.println(httpResponseCode);
-        http.end();
-        return false;
-    }
-}
-
-// Fungsi untuk mengirim data ke server (format lengkap)
-bool sendDataToServer(String data) {
-    if (!serverConnected || currentConfig.serverUrl.length() == 0) {
-        return false;
-    }
-    
-    HTTPClient http;
-    String fullUrl = currentConfig.serverUrl;
-    if (currentConfig.serverPort > 0) {
-        fullUrl += ":" + String(currentConfig.serverPort);
-    }
-    
-    http.begin(fullUrl + "/api/data");
-    http.addHeader("Content-Type", "application/json");
-    
-    // Buat payload JSON
-    DynamicJsonDocument payload(512);
-    payload["deviceId"] = currentConfig.nfcId;
-    payload["deviceName"] = currentConfig.deviceName;
-    payload["sensorType"] = currentConfig.sensorType;
-    payload["data"] = data;
-    payload["interval"] = currentConfig.interval;
-    payload["timestamp"] = millis();
-    
-    String jsonString;
-    serializeJson(payload, jsonString);
-    
-    int httpResponseCode = http.POST(jsonString);
-    
-    if (httpResponseCode > 0) {
-        String response = http.getString();
-        Serial.println("📤 Data sent successfully! Response: " + String(httpResponseCode));
-        http.end();
-        return true;
-    } else {
-        Serial.println("❌ Failed to send data: " + String(httpResponseCode));
-        http.end();
-        return false;
-    }
-}
-
-// Fungsi untuk memproses tag NFC yang terdeteksi
 void processNFCTag(String currentUID) {
-    Serial.println("\n" + String("=").substring(0,60));
+    Serial.println("\n" + String('=', 50));
     Serial.println("🏷️ PROCESSING NFC TAG");
-    Serial.println(String("=").substring(0,60));
+    Serial.println(String('=', 50));
     Serial.println("🆔 UID: " + currentUID);
     
-    // Baca data dari NTAG
     String rawData = readNTAGData();
     
     if (rawData.length() > 0) {
-        Serial.println("📊 Raw data length: " + String(rawData.length()) + " bytes");
+        Serial.println("📊 Data: " + String(rawData.length()) + " bytes");
         
-        // Cek apakah data berubah
         if (rawData != lastRawData) {
-            Serial.println("🔄 New or changed data detected!");
+            Serial.println("🔄 New data!");
             lastRawData = rawData;
             
-            // Ekstrak JSON
             String jsonData = extractJSON(rawData);
             
             if (jsonData.length() > 0) {
-                Serial.println("🎉 JSON extracted successfully!");
+                Serial.println("🎉 JSON found!");
+                Serial.println("📝 JSON: " + jsonData);
                 
-                // Parse konfigurasi
                 if (parseJSONConfig(jsonData.c_str())) {
                     configurationValid = true;
                     
-                    // Auto-connect ke WiFi
-                    if (connectToWiFi()) {
-                        // Test koneksi server
-                        delay(2000); // Berikan waktu untuk stabilitas koneksi
-                        testServerConnection();
+                    if (currentConfig.protocol != "SERIAL") {
+                        if (connectToWiFi()) {
+                            delay(1000);
+                            
+                            if (currentConfig.protocol == "MQTT" || currentConfig.protocol == "MQTTS") {
+                                Serial.println("\n🔌 Initializing MQTT...");
+                                reconnectMQTT();
+                            }
+                        }
+                    } else {
+                        Serial.println("📡 Serial mode - no WiFi needed");
                     }
                     
-                    // Reset sensor timer untuk menggunakan interval baru
                     lastSensorSend = millis();
-                    Serial.println("🎯 Sensor interval set to: " + String(currentConfig.interval) + "s");
                 } else {
-                    Serial.println("❌ Failed to parse configuration");
+                    Serial.println("❌ Config parse failed");
                     configurationValid = false;
                 }
             } else {
-                Serial.println("❌ No valid JSON found in tag data");
+                Serial.println("❌ No valid JSON found in NFC data");
+                Serial.println("📄 Raw data: " + rawData);
                 configurationValid = false;
             }
         } else {
-            Serial.println("ℹ️ Same data as before, skipping processing");
+            Serial.println("ℹ️ Same data as before");
         }
     } else {
-        Serial.println("❌ No data read from tag");
+        Serial.println("❌ No data read from NFC");
     }
 }
+
+// ============ SETUP ============
 
 void setup() {
     Serial.begin(115200);
     while (!Serial) delay(10);
     
-    Serial.println("\n🚀 ESP32 NFC Auto-Configuration System");
-    Serial.println("========================================");
-    Serial.println("✨ Features:");
-    Serial.println("   • Auto WiFi connection from NFC data");
-    Serial.println("   • Server communication setup");
-    Serial.println("   • Connection monitoring & recovery");
-    Serial.println("   • Smartphone-compatible field release");
-    Serial.println("   • Dynamic sensor interval from NFC config");
-    Serial.println("⚙️ Configuration:");
-    Serial.println("   • NFC check: " + String(CHECK_INTERVAL/1000) + "s");
-    Serial.println("   • Field release: " + String(RELEASE_INTERVAL/1000) + "s");
-    Serial.println("   • WiFi monitor: " + String(WIFI_CHECK_INTERVAL/1000) + "s");
-    Serial.println("   • Server monitor: " + String(SERVER_CHECK_INTERVAL/1000) + "s");
-    Serial.println("   • Default sensor interval: " + String(DEFAULT_SENSOR_INTERVAL/1000) + "s");
-    Serial.println("   • Sensor interval will be updated from NFC config");
+    Serial.println("\n🚀 ESP32 NFC Multi-Protocol v2.2");
+    Serial.println("====================================");
+    Serial.println("✨ Protocols:");
+    Serial.println("   • HTTP / HTTPS");
+    Serial.println("   • MQTT / MQTTS");
+    Serial.println("   • Serial Output");
+    Serial.println("====================================");
     
-    // Initialize NFC
     nfc.begin();
     
     uint32_t versiondata = nfc.getFirmwareVersion();
     if (!versiondata) {
-        Serial.println("❌ PN532 not found! Check wiring.");
+        Serial.println("❌ PN532 not found!");
         while (1) delay(1000);
     }
     
-    Serial.print("✅ Found PN5"); 
+    Serial.print("✅ Found PN5");
     Serial.println((versiondata>>24) & 0xFF, HEX);
-    Serial.print("📋 Firmware v"); 
-    Serial.print((versiondata>>16) & 0xFF, DEC);
-    Serial.print('.'); 
-    Serial.println((versiondata>>8) & 0xFF, DEC);
     
     nfc.SAMConfig();
-    
-    // Initialize WiFi
     WiFi.mode(WIFI_STA);
     
-    Serial.println("\n⏳ Ready! Place NFC tag near reader...");
-    Serial.println("💡 TIP: Use smartphone during 'RELEASING NFC FIELD' messages");
-    Serial.println("🎯 Sensor interval will be configured from NFC tag data");
+    // Setup MQTT client
+    mqttClient.setCallback(mqttCallback);
+    mqttClient.setBufferSize(512);
+    mqttClient.setKeepAlive(60);
+    mqttClient.setSocketTimeout(15);
+    
+    Serial.println("\n⏳ Ready! Place NFC tag...");
+    Serial.println("💡 Type 'help' for commands\n");
     
     lastReleaseTime = millis();
     lastWifiCheck = millis();
-    lastServerCheck = millis();
     lastSensorSend = millis();
+    lastHeartbeat = millis();
 }
+
+// ============ LOOP ============
 
 void loop() {
     unsigned long currentTime = millis();
     
-    // Periodic field release untuk smartphone compatibility
+    // Field release
     if (currentTime - lastReleaseTime >= RELEASE_INTERVAL) {
         releaseNFCField();
         return;
     }
     
-    // Check WiFi connection periodically
-    if (configurationValid && currentTime - lastWifiCheck >= WIFI_CHECK_INTERVAL) {
+    // WiFi check
+    if (configurationValid && currentConfig.protocol != "SERIAL" && 
+        currentTime - lastWifiCheck >= WIFI_CHECK_INTERVAL) {
         if (WiFi.status() != WL_CONNECTED && wifiConnected) {
-            Serial.println("🔄 WiFi disconnected, attempting reconnection...");
+            Serial.println("\n⚠️ WiFi lost, reconnecting...");
             connectToWiFi();
-        } else if (WiFi.status() == WL_CONNECTED && !wifiConnected) {
-            wifiConnected = true;
-            Serial.println("✅ WiFi reconnected!");
+            
+            if (wifiConnected && (currentConfig.protocol == "MQTT" || currentConfig.protocol == "MQTTS")) {
+                reconnectMQTT();
+            }
         }
         lastWifiCheck = currentTime;
     }
     
-    // Check server connection periodically
-    if (configurationValid && wifiConnected && currentTime - lastServerCheck >= SERVER_CHECK_INTERVAL) {
-        testServerConnection();
-        lastServerCheck = currentTime;
+    // MQTT maintain
+    if (configurationValid && wifiConnected && 
+        (currentConfig.protocol == "MQTT" || currentConfig.protocol == "MQTTS")) {
+        if (!mqttClient.connected()) {
+            reconnectMQTT();
+        } else {
+            mqttClient.loop();
+        }
     }
     
-    // Kirim data sensor berdasarkan interval dari NFC configuration
-    unsigned long sensorInterval = getSensorInterval();
-    if (configurationValid && wifiConnected && currentTime - lastSensorSend >= sensorInterval) {
-        Serial.println("\n📊 === SENDING SENSOR DATA ===");
-        // Serial.println("⏱️ Using interval: " + String(sensorInterval) + "ms (" + String(sensorInterval/1000.0, 1) + "s)");
-        Serial.println("⏱️ Using interval: " + String(sensorInterval) + "ms" + "("+String(sensorInterval/1000) + "s" + ")");
-        Serial.println("⏱️ Using interval: " + String(sensorInterval));
-        if (sendSensorDataToNodeRED()) {
-            Serial.println("✅ Sensor data sent successfully!");
-        } else {
-            Serial.println("❌ Failed to send sensor data");
+    // Send sensor data
+    if (configurationValid && currentTime - lastSensorSend >= getSensorInterval()) {
+        if (currentConfig.protocol == "SERIAL" || wifiConnected) {
+            sendSensorData();
         }
         lastSensorSend = currentTime;
     }
     
-    // NFC scanning dengan interval
+    // Heartbeat for MQTT
+    if (configurationValid && mqttClient.connected() && 
+        currentTime - lastHeartbeat >= HEARTBEAT_INTERVAL) {
+        publishHeartbeat();
+        lastHeartbeat = currentTime;
+    }
+    
+    // NFC scanning
     if (currentTime - lastCheckTime < CHECK_INTERVAL) {
         delay(10);
         return;
@@ -581,135 +790,172 @@ void loop() {
     
     lastCheckTime = currentTime;
     
-    // Scan untuk NFC tag
     uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };
     uint8_t uidLength;
     
-    bool tagDetected = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength);
+    bool tagDetected = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 100);
     
     if (tagDetected) {
         String currentUID = getUIDString(uid, uidLength);
         
         if (!tagPresent) {
-            // Tag baru terdeteksi
-            Serial.println("\n🆕 NEW NFC TAG DETECTED!");
+            Serial.println("\n🆕 NEW TAG!");
             tagPresent = true;
             lastUID = currentUID;
             processNFCTag(currentUID);
-            
         } else if (currentUID != lastUID) {
-            // Tag berbeda
-            Serial.println("\n🔄 DIFFERENT TAG DETECTED!");
-            Serial.println("Previous: " + lastUID);
-            Serial.println("Current:  " + currentUID);
+            Serial.println("\n🔄 DIFFERENT TAG!");
             lastUID = currentUID;
-            lastRawData = ""; // Reset data untuk force re-read
+            lastRawData = "";
             processNFCTag(currentUID);
-            
-        } else {
-            // Tag sama, tampilkan heartbeat
-            Serial.print("💓");
-            
-            // Opsional: Cek perubahan data pada tag yang sama
-            String currentRawData = readNTAGData();
-            if (currentRawData != lastRawData && currentRawData.length() > 0) {
-                Serial.println("\n🔄 DATA UPDATE DETECTED ON SAME TAG!");
-                processNFCTag(currentUID);
-            }
         }
-        
     } else {
         if (tagPresent) {
             Serial.println("\n❌ TAG REMOVED");
             tagPresent = false;
             lastUID = "";
-            Serial.println("⏳ Waiting for next NFC tag...");
-        } else {
-            Serial.print("⏳");
         }
     }
-}
-
-// Serial commands untuk debugging
-void serialEvent() {
+    
+    // Serial commands
     if (Serial.available()) {
-        String command = Serial.readStringUntil('\n');
-        command.trim();
-        command.toUpperCase();
+        String cmd = Serial.readStringUntil('\n');
+        cmd.trim();
+        cmd.toLowerCase();
         
-        if (command == "RELEASE") {
-            Serial.println("\n🎛️ Manual field release triggered!");
-            releaseNFCField();
+        if (cmd == "status") {
+            Serial.println("\n📊 === STATUS ===");
+            Serial.println("Tag: " + String(tagPresent ? "YES" : "NO"));
+            Serial.println("Config: " + String(configurationValid ? "VALID" : "INVALID"));
+            Serial.println("WiFi: " + String(wifiConnected ? "CONNECTED" : "DISCONNECTED"));
             
-        } else if (command == "STATUS") {
-            Serial.println("\n📊 === SYSTEM STATUS ===");
-            Serial.println("🏷️ Tag Present: " + String(tagPresent ? "YES" : "NO"));
-            Serial.println("🆔 Last UID: " + (lastUID.length() > 0 ? lastUID : "None"));
-            Serial.println("📊 Data Length: " + String(lastRawData.length()) + " bytes");
-            Serial.println("🔧 Config Valid: " + String(configurationValid ? "YES" : "NO"));
-            Serial.println("📡 WiFi Status: " + String(wifiConnected ? "CONNECTED" : "DISCONNECTED"));
             if (wifiConnected) {
-                Serial.println("📶 WiFi IP: " + WiFi.localIP().toString());
-                Serial.println("📶 WiFi RSSI: " + String(WiFi.RSSI()) + " dBm");
-            }
-            Serial.println("🌐 Server Status: " + String(serverConnected ? "CONNECTED" : "DISCONNECTED"));
-            Serial.println("⏰ Next Release: " + String((RELEASE_INTERVAL - (millis() - lastReleaseTime))/1000) + "s");
-            Serial.println("🎯 Active Sensor Interval: " + String(getSensorInterval()) + "ms (" + String(getSensorInterval()/1000.0, 1) + "s)");
-            if (configurationValid) {
-                Serial.println("📝 Config Interval: " + String(currentConfig.interval) + "ms");
-            } else {
-                Serial.println("📝 Using Default Interval: " + String(DEFAULT_SENSOR_INTERVAL) + "ms");
+                Serial.println("IP: " + WiFi.localIP().toString());
+                Serial.println("RSSI: " + String(WiFi.RSSI()) + " dBm");
             }
             
-        } else if (command == "WIFI") {
             if (configurationValid) {
-                Serial.println("\n🔄 Forcing WiFi reconnection...");
+                Serial.println("\n📡 Protocol: " + currentConfig.protocol);
+                Serial.println("🌐 Server: " + currentConfig.serverUrl + ":" + String(currentConfig.serverPort));
+                Serial.println("⏱️ Interval: " + String(currentConfig.interval) + "ms");
+                
+                if (currentConfig.protocol == "MQTT" || currentConfig.protocol == "MQTTS") {
+                    Serial.println("📬 MQTT: " + String(mqttClient.connected() ? "CONNECTED ✅" : "DISCONNECTED ❌"));
+                    if (!mqttClient.connected()) {
+                        int state = mqttClient.state();
+                        Serial.print("   State: ");
+                        switch(state) {
+                            case -4: Serial.println("TIMEOUT"); break;
+                            case -3: Serial.println("CONNECTION_LOST"); break;
+                            case -2: Serial.println("CONNECT_FAILED"); break;
+                            case -1: Serial.println("DISCONNECTED"); break;
+                            case 1: Serial.println("BAD_PROTOCOL"); break;
+                            case 2: Serial.println("BAD_CLIENT_ID"); break;
+                            case 3: Serial.println("UNAVAILABLE"); break;
+                            case 4: Serial.println("BAD_CREDENTIALS"); break;
+                            case 5: Serial.println("UNAUTHORIZED"); break;
+                            default: Serial.println("UNKNOWN (" + String(state) + ")");
+                        }
+                    }
+                }
+            }
+            Serial.println("=================");
+            
+        } else if (cmd == "send") {
+            if (configurationValid) {
+                Serial.println("\n📤 Manual send test...");
+                sendSensorData();
+            } else {
+                Serial.println("\n❌ No valid configuration");
+            }
+            
+        } else if (cmd == "wifi") {
+            if (configurationValid && currentConfig.protocol != "SERIAL") {
+                Serial.println("\n🔄 Reconnecting WiFi...");
                 connectToWiFi();
+            } else {
+                Serial.println("\n❌ No config or Serial mode");
+            }
+            
+        } else if (cmd == "mqtt") {
+            if (configurationValid && (currentConfig.protocol == "MQTT" || currentConfig.protocol == "MQTTS")) {
+                Serial.println("\n🔄 Reconnecting MQTT...");
+                if (wifiConnected) {
+                    if (mqttClient.connected()) {
+                        mqttClient.disconnect();
+                        delay(1000);
+                    }
+                    reconnectMQTT();
+                } else {
+                    Serial.println("❌ WiFi not connected first");
+                }
+            } else {
+                Serial.println("\n❌ Not using MQTT protocol");
+            }
+            
+        } else if (cmd == "config") {
+            if (configurationValid) {
+                Serial.println("\n📋 === CONFIGURATION ===");
+                Serial.println("🆔 NFC ID: " + currentConfig.nfcId);
+                Serial.println("📱 Device: " + currentConfig.deviceName);
+                Serial.println("📡 WiFi SSID: " + currentConfig.wifi);
+                Serial.println("🌐 Server: " + currentConfig.serverUrl);
+                Serial.println("🔌 Port: " + String(currentConfig.serverPort));
+                Serial.println("📡 Protocol: " + currentConfig.protocol);
+                Serial.println("📊 Sensor: " + currentConfig.sensorType);
+                Serial.println("⏱️ Interval: " + String(currentConfig.interval) + "ms");
+                
+                if (currentConfig.protocol == "MQTT" || currentConfig.protocol == "MQTTS") {
+                    Serial.println("\n📬 MQTT Topic: " + (currentConfig.mqttTopic.length() > 0 ? currentConfig.mqttTopic : "sensors/" + currentConfig.deviceName));
+                    Serial.println("👤 Username: " + (currentConfig.mqttUsername.length() > 0 ? currentConfig.mqttUsername : "(none - public)"));
+                }
+                
+                if (currentConfig.endpoint.length() > 0) {
+                    Serial.println("🎯 Endpoint: " + currentConfig.endpoint);
+                }
+                
+                Serial.println("📦 Version: " + currentConfig.version);
+                Serial.println("========================");
             } else {
                 Serial.println("\n❌ No valid configuration loaded");
             }
             
-        } else if (command == "SERVER") {
-            if (configurationValid && wifiConnected) {
-                Serial.println("\n🔄 Testing server connection...");
-                testServerConnection();
-            } else {
-                Serial.println("\n❌ WiFi not connected or no valid configuration");
-            }
+        } else if (cmd == "release") {
+            Serial.println("\n🎛️ Manual NFC field release");
+            releaseNFCField();
             
-        } else if (command == "SEND") {
-            if (wifiConnected && configurationValid) {
-                Serial.println("\n📤 Sending test sensor data to Node-RED...");
-                Serial.println("⏱️ Current interval: " + String(getSensorInterval()) + "ms");
-                if (sendSensorDataToNodeRED()) {
-                    Serial.println("✅ Test data sent successfully!");
-                } else {
-                    Serial.println("❌ Failed to send test data");
-                }
-            } else {
-                Serial.println("\n❌ WiFi not connected or no valid configuration");
-            }
+        } else if (cmd == "test") {
+            Serial.println("\n🧪 === DIAGNOSTIC TEST ===");
+            Serial.println("1️⃣ WiFi Status: " + String(WiFi.status()));
+            Serial.println("2️⃣ Config Valid: " + String(configurationValid));
             
-        } else if (command == "INTERVAL") {
-            Serial.println("\n⏱️ === INTERVAL STATUS ===");
-            Serial.println("🎯 Active Interval: " + String(getSensorInterval()) + "ms (" + String(getSensorInterval()/1000.0, 1) + "s)");
-            Serial.println("📋 Default Interval: " + String(DEFAULT_SENSOR_INTERVAL) + "ms");
             if (configurationValid) {
-                Serial.println("📝 NFC Config Interval: " + String(currentConfig.interval) + "ms");
-            } else {
-                Serial.println("❌ No NFC configuration loaded");
+                Serial.println("3️⃣ Protocol: " + currentConfig.protocol);
+                Serial.println("4️⃣ Server: " + currentConfig.serverUrl);
+                Serial.println("5️⃣ Port: " + String(currentConfig.serverPort));
+                
+                if (currentConfig.protocol == "MQTT" || currentConfig.protocol == "MQTTS") {
+                    Serial.println("6️⃣ MQTT Connected: " + String(mqttClient.connected()));
+                    Serial.println("7️⃣ MQTT State: " + String(mqttClient.state()));
+                }
             }
-            Serial.println("⏰ Next sensor send in: " + String((getSensorInterval() - (millis() - lastSensorSend))/1000.0, 1) + "s");
+            Serial.println("========================");
             
-        } else if (command == "HELP") {
-            Serial.println("\n📖 === AVAILABLE COMMANDS ===");
-            Serial.println("RELEASE  - Manually release NFC field");
-            Serial.println("STATUS   - Show detailed system status");
-            Serial.println("WIFI     - Force WiFi reconnection");
-            Serial.println("SERVER   - Test server connection");
-            Serial.println("SEND     - Send test sensor data to Node-RED");
-            Serial.println("INTERVAL - Show sensor interval information");
-            Serial.println("HELP     - Show this help menu");
+        } else if (cmd == "help") {
+            Serial.println("\n📖 === COMMANDS ===");
+            Serial.println("status   - Show system status");
+            Serial.println("send     - Send test sensor data");
+            Serial.println("wifi     - Reconnect WiFi");
+            Serial.println("mqtt     - Reconnect MQTT broker");
+            Serial.println("config   - Display configuration");
+            Serial.println("release  - Release NFC field");
+            Serial.println("test     - Run diagnostic test");
+            Serial.println("help     - Show this help");
+            Serial.println("===================");
+            
+        } else if (cmd.length() > 0) {
+            Serial.println("\n❓ Unknown command: '" + cmd + "'");
+            Serial.println("💡 Type 'help' for available commands");
         }
     }
 }
