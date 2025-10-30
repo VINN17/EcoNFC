@@ -5,13 +5,47 @@
 #include <Adafruit_PN532.h>
 #include <ArduinoJson.h>
 #include <PubSubClient.h>
+#include <DHT.h>
+#include <EEPROM.h>
 
+// ========== NFC PINS ==========
 #define SDA_PIN 21
 #define SCL_PIN 22
 
-Adafruit_PN532 nfc(SDA_PIN, SCL_PIN);
+// ========== SENSOR PINS ==========
+#define MQ135_PIN 34
+#define MQ7_PIN 35
+#define MQ9_PIN 32
+#define DHTPIN 33
+#define DHTTYPE DHT22
+#define CALIB_BUTTON_PIN 10
+#define LED_PIN 13  // LED indicator untuk pengiriman data
 
-// Struktur konfigurasi
+// ========== EEPROM SETTINGS ==========
+#define EEPROM_SIZE 64
+#define ADDR_RO_MQ135 0
+#define ADDR_RO_MQ7 4
+#define ADDR_RO_MQ9 8
+#define ADDR_CALIB_FLAG 12
+#define CALIB_MAGIC 0xAB
+
+// ========== SENSOR CONSTANTS ==========
+#define RL_VALUE 10.0
+#define RO_CLEAN_AIR_FACTOR 9.83
+#define CALIBRATION_SAMPLES 50
+
+// Koefisien perhitungan konsentrasi gas
+#define MQ135_A 116.6020682
+#define MQ135_B -2.769034857
+#define MQ7_A 99.0418
+#define MQ7_B -1.518
+#define MQ9_A 1000.5
+#define MQ9_B -2.186
+
+Adafruit_PN532 nfc(SDA_PIN, SCL_PIN);
+DHT dht(DHTPIN, DHTTYPE);
+
+// Struktur konfigurasi NFC
 struct NFCConfig {
     String nfcId;
     String deviceName;
@@ -33,26 +67,44 @@ struct NFCConfig {
 };
 
 NFCConfig currentConfig;
+
+// Variabel kalibrasi sensor gas
+float Ro_MQ135 = 10.0;
+float Ro_MQ7 = 10.0;
+float Ro_MQ9 = 10.0;
+
+// Buffer data valid DHT
+float lastValidTemp = 25.0;
+float lastValidHumidity = 50.0;
+int dhtErrorCount = 0;
+
+// Status sistem
 String lastRawData = "";
 String lastUID = "";
 bool tagPresent = false;
 bool wifiConnected = false;
 bool configurationValid = false;
 
+// Tombol kalibrasi
+bool lastButtonState = HIGH;
+unsigned long lastDebounceTime = 0;
+const unsigned long debounceDelay = 50;
+
 // Protocol clients
 WiFiClient wifiClient;
 WiFiClientSecure secureClient;
 PubSubClient mqttClient(wifiClient);
 
-// Timing
+// Timing variables
 unsigned long lastCheckTime = 0;
 unsigned long lastReleaseTime = 0;
 unsigned long lastWifiCheck = 0;
 unsigned long lastSensorSend = 0;
 unsigned long lastReconnectMQTT = 0;
 unsigned long lastHeartbeat = 0;
+unsigned long ledStartTime = 0;
 
-// Konfigurasi timing
+// Timing constants
 const unsigned long CHECK_INTERVAL = 2000;
 const unsigned long RELEASE_INTERVAL = 8000;
 const unsigned long RELEASE_DURATION = 1500;
@@ -61,8 +113,173 @@ const unsigned long DEFAULT_SENSOR_INTERVAL = 5000;
 const unsigned long WIFI_TIMEOUT = 20000;
 const unsigned long MQTT_RECONNECT_INTERVAL = 5000;
 const unsigned long HEARTBEAT_INTERVAL = 20000;
+const unsigned long LED_DURATION = 1000;  // LED nyala 1 detik sebelum kirim
 
-// ============ SENSOR FUNCTIONS ============
+// LED state
+bool ledActive = false;
+
+// ============ SENSOR GAS FUNCTIONS ============
+
+float hitungRs(int adcValue) {
+    if (adcValue == 0) return 999999.0;
+    
+    float voltage = (adcValue / 4095.0) * 3.3;
+    float Rs = ((3.3 * RL_VALUE) / voltage) - RL_VALUE;
+    
+    return Rs > 0 ? Rs : 0.1;
+}
+
+float hitungKonsentrasi(float Rs, float Ro, float a, float b) {
+    if (Ro <= 0) return -1;
+    
+    float ratio = Rs / Ro;
+    if (ratio <= 0) return -1;
+    
+    float ppm = a * pow(ratio, b);
+    return ppm > 0 ? ppm : 0;
+}
+
+float hitungAQI(float ppm_MQ135, float ppm_MQ7, float ppm_MQ9) {
+    float aqi_MQ135 = ppm_MQ135 * 1.0;
+    float aqi_MQ7 = ppm_MQ7 * 2.0;
+    float aqi_MQ9 = ppm_MQ9 * 1.5;
+    
+    float aqi = (aqi_MQ135 * 0.4) + (aqi_MQ7 * 0.3) + (aqi_MQ9 * 0.3);
+    
+    return aqi > 500 ? 500 : aqi;
+}
+
+String getStatusUdara(float aqi) {
+    if (aqi < 20) return "Baik";
+    else if (aqi < 50) return "Sedang";
+    else if (aqi < 100) return "Tidak Sehat";
+    else if (aqi < 200) return "Sangat Tidak Sehat";
+    else return "Berbahaya";
+}
+
+bool validasiADC(int adcValue, String sensorName) {
+    if (adcValue > 4095) {
+        Serial.println("⚠ Sensor " + sensorName + " nilai melebihi batas: " + String(adcValue));
+        return false;
+    }
+    
+    if (adcValue < 5) {
+        Serial.println("ℹ Sensor " + sensorName + " ADC sangat rendah: " + String(adcValue));
+    }
+    
+    return true;
+}
+
+// ============ DHT FUNCTIONS ============
+
+bool bacaDHT(float &temp, float &humidity) {
+    temp = dht.readTemperature();
+    humidity = dht.readHumidity();
+    
+    if (isnan(temp) || isnan(humidity)) {
+        return false;
+    }
+    
+    if (temp < -40 || temp > 80 || humidity < 0 || humidity > 100) {
+        return false;
+    }
+    
+    return true;
+}
+
+// ============ CALIBRATION FUNCTIONS ============
+
+void kalibrasiSensor() {
+    Serial.println("\n========================================");
+    Serial.println("       PROSES KALIBRASI SENSOR");
+    Serial.println("========================================");
+    Serial.println("⚠ Pastikan sensor berada di udara bersih!");
+    Serial.println("⏳ Menunggu 3 detik...\n");
+    delay(3000);
+    
+    float sum_MQ135 = 0, sum_MQ7 = 0, sum_MQ9 = 0;
+    
+    Serial.println("📊 Mengambil " + String(CALIBRATION_SAMPLES) + " sampel...");
+    
+    for (int i = 0; i < CALIBRATION_SAMPLES; i++) {
+        int adc_MQ135 = analogRead(MQ135_PIN);
+        int adc_MQ7 = analogRead(MQ7_PIN);
+        int adc_MQ9 = analogRead(MQ9_PIN);
+        
+        sum_MQ135 += hitungRs(adc_MQ135);
+        sum_MQ7 += hitungRs(adc_MQ7);
+        sum_MQ9 += hitungRs(adc_MQ9);
+        
+        if ((i + 1) % 10 == 0) {
+            Serial.print("   Sampel: ");
+            Serial.print(i + 1);
+            Serial.print("/");
+            Serial.println(CALIBRATION_SAMPLES);
+        }
+        
+        delay(200);
+    }
+    
+    Ro_MQ135 = (sum_MQ135 / CALIBRATION_SAMPLES) / RO_CLEAN_AIR_FACTOR;
+    Ro_MQ7 = (sum_MQ7 / CALIBRATION_SAMPLES) / RO_CLEAN_AIR_FACTOR;
+    Ro_MQ9 = (sum_MQ9 / CALIBRATION_SAMPLES) / RO_CLEAN_AIR_FACTOR;
+    
+    tulisEEPROM();
+    
+    Serial.println("\n✅ Kalibrasi selesai!");
+    Serial.println("   Ro MQ135: " + String(Ro_MQ135, 2) + " kΩ");
+    Serial.println("   Ro MQ7  : " + String(Ro_MQ7, 2) + " kΩ");
+    Serial.println("   Ro MQ9  : " + String(Ro_MQ9, 2) + " kΩ");
+    Serial.println("========================================\n");
+    
+    delay(2000);
+}
+
+void bacaEEPROM() {
+    byte calibFlag = EEPROM.read(ADDR_CALIB_FLAG);
+    
+    if (calibFlag == CALIB_MAGIC) {
+        EEPROM.get(ADDR_RO_MQ135, Ro_MQ135);
+        EEPROM.get(ADDR_RO_MQ7, Ro_MQ7);
+        EEPROM.get(ADDR_RO_MQ9, Ro_MQ9);
+        
+        Serial.println("✓ Kalibrasi dimuat dari EEPROM");
+        Serial.println("   Ro MQ135: " + String(Ro_MQ135, 2) + " kΩ");
+        Serial.println("   Ro MQ7  : " + String(Ro_MQ7, 2) + " kΩ");
+        Serial.println("   Ro MQ9  : " + String(Ro_MQ9, 2) + " kΩ");
+    } else {
+        Serial.println("⚠ Belum ada data kalibrasi");
+        Serial.println("  Tekan tombol untuk kalibrasi sensor");
+    }
+}
+
+void tulisEEPROM() {
+    EEPROM.put(ADDR_RO_MQ135, Ro_MQ135);
+    EEPROM.put(ADDR_RO_MQ7, Ro_MQ7);
+    EEPROM.put(ADDR_RO_MQ9, Ro_MQ9);
+    EEPROM.write(ADDR_CALIB_FLAG, CALIB_MAGIC);
+    EEPROM.commit();
+    
+    Serial.println("💾 Data kalibrasi disimpan ke EEPROM");
+}
+
+void cekTombolKalibrasi() {
+    int reading = digitalRead(CALIB_BUTTON_PIN);
+    
+    if (reading != lastButtonState) {
+        lastDebounceTime = millis();
+    }
+    
+    if ((millis() - lastDebounceTime) > debounceDelay) {
+        if (reading == LOW) {
+            kalibrasiSensor();
+        }
+    }
+    
+    lastButtonState = reading;
+}
+
+// ============ SENSOR DATA FUNCTIONS ============
 
 unsigned long getSensorInterval() {
     if (configurationValid && currentConfig.interval > 0) {
@@ -71,15 +288,82 @@ unsigned long getSensorInterval() {
     return DEFAULT_SENSOR_INTERVAL;
 }
 
-void readSensorData(float &temp, float &hum) {
-    temp = random(250, 350) / 10.0;
-    hum = random(600, 900) / 10.0;
+void readSensorData(float &temp, float &hum, float &aqi, 
+                    float &ppm_135, float &ppm_7, float &ppm_9,
+                    int &adc_135, int &adc_7, int &adc_9) {
+    // Baca sensor gas
+    adc_135 = analogRead(MQ135_PIN);
+    adc_7 = analogRead(MQ7_PIN);
+    adc_9 = analogRead(MQ9_PIN);
+    
+    // Validasi ADC
+    if (!validasiADC(adc_135, "MQ135") || !validasiADC(adc_7, "MQ7") || !validasiADC(adc_9, "MQ9")) {
+        aqi = -1;
+        return;
+    }
+    
+    // Hitung Rs
+    float Rs_MQ135 = hitungRs(adc_135);
+    float Rs_MQ7 = hitungRs(adc_7);
+    float Rs_MQ9 = hitungRs(adc_9);
+    
+    // Hitung konsentrasi gas (ppm)
+    ppm_135 = hitungKonsentrasi(Rs_MQ135, Ro_MQ135, MQ135_A, MQ135_B);
+    ppm_7 = hitungKonsentrasi(Rs_MQ7, Ro_MQ7, MQ7_A, MQ7_B);
+    ppm_9 = hitungKonsentrasi(Rs_MQ9, Ro_MQ9, MQ9_A, MQ9_B);
+    
+    // Validasi konsentrasi
+    if (ppm_135 < 0 || ppm_7 < 0 || ppm_9 < 0) {
+        aqi = -1;
+        return;
+    }
+    
+    // Hitung AQI
+    aqi = hitungAQI(ppm_135, ppm_7, ppm_9);
+    
+    // Baca DHT
+    if (!bacaDHT(temp, hum)) {
+        temp = lastValidTemp;
+        hum = lastValidHumidity;
+        dhtErrorCount++;
+        
+        if (dhtErrorCount > 3) {
+            Serial.println("⚠ Sensor DHT error, menggunakan data terakhir");
+        }
+    } else {
+        lastValidTemp = temp;
+        lastValidHumidity = hum;
+        dhtErrorCount = 0;
+    }
 }
 
-String createSensorJSON(float temp, float hum) {
+String createSensorJSON(float temp, float hum, float aqi,
+                       float ppm_135, float ppm_7, float ppm_9,
+                       int adc_135, int adc_7, int adc_9) {
     JsonDocument jsonDoc;
+    
+    // Data sensor
     jsonDoc["temp"] = round(temp * 10) / 10.0;
-    jsonDoc["hum"] = round(hum * 10) / 10.0;
+    jsonDoc["humidity"] = round(hum * 10) / 10.0;
+    jsonDoc["aqi"] = round(aqi * 10) / 10.0;
+    jsonDoc["status"] = getStatusUdara(aqi);
+    
+    // Data gas (ppm)
+    jsonDoc["ppm_MQ135"] = round(ppm_135 * 10) / 10.0;
+    jsonDoc["ppm_MQ7"] = round(ppm_7 * 10) / 10.0;
+    jsonDoc["ppm_MQ9"] = round(ppm_9 * 10) / 10.0;
+    
+    // Data ADC raw
+    jsonDoc["adc_MQ135"] = adc_135;
+    jsonDoc["adc_MQ7"] = adc_7;
+    jsonDoc["adc_MQ9"] = adc_9;
+    
+    // Kalibrasi values
+    jsonDoc["ro_MQ135"] = round(Ro_MQ135 * 100) / 100.0;
+    jsonDoc["ro_MQ7"] = round(Ro_MQ7 * 100) / 100.0;
+    jsonDoc["ro_MQ9"] = round(Ro_MQ9 * 100) / 100.0;
+    
+    // Device info
     jsonDoc["deviceId"] = currentConfig.nfcId;
     jsonDoc["deviceName"] = currentConfig.deviceName;
     jsonDoc["sensorType"] = currentConfig.sensorType;
@@ -93,6 +377,30 @@ String createSensorJSON(float temp, float hum) {
     return json;
 }
 
+// ============ LED INDICATOR FUNCTIONS ============
+
+void startLEDIndicator() {
+    digitalWrite(LED_PIN, HIGH);
+    ledActive = true;
+    ledStartTime = millis();
+    Serial.println("💡 LED ON - Persiapan kirim data...");
+}
+
+void stopLEDIndicator() {
+    if (ledActive) {
+        digitalWrite(LED_PIN, LOW);
+        ledActive = false;
+        Serial.println("💡 LED OFF");
+    }
+}
+
+void checkLEDIndicator() {
+    if (ledActive && (millis() - ledStartTime >= LED_DURATION)) {
+        // LED sudah nyala cukup lama, tidak perlu dimatikan di sini
+        // Akan dimatikan setelah pengiriman data selesai
+    }
+}
+
 // ============ HTTP/HTTPS FUNCTIONS ============
 
 bool sendDataViaHTTP(String jsonData, bool useHTTPS = false) {
@@ -100,20 +408,16 @@ bool sendDataViaHTTP(String jsonData, bool useHTTPS = false) {
     
     String fullUrl = currentConfig.serverUrl;
     
-    // Add protocol if missing
     if (!fullUrl.startsWith("http://") && !fullUrl.startsWith("https://")) {
         fullUrl = String(useHTTPS ? "https://" : "http://") + fullUrl;
     }
     
     if (currentConfig.serverPort > 0) {
-        // Only add port if not already in URL
         if (fullUrl.indexOf("://") > 0) {
             int colonPos = fullUrl.lastIndexOf(":");
             int slashPos = fullUrl.indexOf("/", fullUrl.indexOf("://") + 3);
             
-            // Check if port is already specified
             if (colonPos < fullUrl.indexOf("://") || (slashPos > 0 && colonPos > slashPos)) {
-                // No port specified, add it
                 if (slashPos > 0) {
                     fullUrl = fullUrl.substring(0, slashPos) + ":" + String(currentConfig.serverPort) + fullUrl.substring(slashPos);
                 } else {
@@ -199,7 +503,6 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 bool reconnectMQTT() {
     unsigned long now = millis();
     
-    // Throttle reconnection attempts
     if (now - lastReconnectMQTT < MQTT_RECONNECT_INTERVAL) {
         return false;
     }
@@ -214,14 +517,12 @@ bool reconnectMQTT() {
         return true;
     }
     
-    // Clean broker URL
     String broker = currentConfig.serverUrl;
     broker.replace("mqtt://", "");
     broker.replace("mqtts://", "");
     broker.replace("http://", "");
     broker.replace("https://", "");
     
-    // Remove any port from broker URL
     int colonPos = broker.indexOf(":");
     if (colonPos > 0) {
         broker = broker.substring(0, colonPos);
@@ -230,14 +531,11 @@ bool reconnectMQTT() {
     Serial.println("\n⚡ Connecting to MQTT...");
     Serial.println("🌐 Broker: " + broker + ":" + String(currentConfig.serverPort));
     
-    // Set MQTT server - CRITICAL FIX!
     mqttClient.setServer(broker.c_str(), currentConfig.serverPort);
     
-    // Generate unique client ID
-    String clientId = "ESP32-" + currentConfig.nfcId + "-" + String((uint32_t)ESP.getEfuseMac(), HEX);
+    String clientId = "ESP32-AQI-" + currentConfig.nfcId + "-" + String((uint32_t)ESP.getEfuseMac(), HEX);
     Serial.println("🆔 Client: " + clientId);
     
-    // Setup MQTT topics
     String statusTopic = currentConfig.mqttTopic.length() > 0 ? 
                          currentConfig.mqttTopic + "/status" : 
                          "sensors/" + currentConfig.deviceName + "/status";
@@ -248,7 +546,6 @@ bool reconnectMQTT() {
     
     bool connected = false;
     
-    // Connect with Last Will Testament
     if (currentConfig.mqttUsername.length() > 0 && currentConfig.mqttPassword.length() > 0) {
         Serial.println("👤 Auth: " + currentConfig.mqttUsername);
         connected = mqttClient.connect(
@@ -274,19 +571,16 @@ bool reconnectMQTT() {
     if (connected) {
         Serial.println("✅ MQTT Connected!");
         
-        // Publish online status
         mqttClient.publish(statusTopic.c_str(), "online", true);
         
-        // Subscribe to command topic
         if (mqttClient.subscribe(cmdTopic.c_str())) {
             Serial.println("📬 Subscribed: " + cmdTopic);
         }
         
-        // Publish initial info
         JsonDocument doc;
         doc["device"] = currentConfig.deviceName;
         doc["id"] = currentConfig.nfcId;
-        doc["sensor"] = currentConfig.sensorType;
+        doc["sensor"] = "AQI Monitor (MQ135/MQ7/MQ9 + DHT22)";
         doc["interval"] = currentConfig.interval;
         doc["ip"] = WiFi.localIP().toString();
         
@@ -366,13 +660,34 @@ bool sendSensorData() {
         return false;
     }
     
-    float temp, hum;
-    readSensorData(temp, hum);
-    String jsonData = createSensorJSON(temp, hum);
+    // Nyalakan LED indicator
+    startLEDIndicator();
     
-    Serial.println("\n📊 === SENSOR DATA ===");
+    // Tunggu LED_DURATION sebelum kirim data
+    delay(LED_DURATION);
+    
+    float temp, hum, aqi;
+    float ppm_135, ppm_7, ppm_9;
+    int adc_135, adc_7, adc_9;
+    
+    readSensorData(temp, hum, aqi, ppm_135, ppm_7, ppm_9, adc_135, adc_7, adc_9);
+    
+    // Jika data tidak valid
+    if (aqi < 0) {
+        Serial.println("❌ Data sensor tidak valid, skip pengiriman");
+        stopLEDIndicator();
+        return false;
+    }
+    
+    String jsonData = createSensorJSON(temp, hum, aqi, ppm_135, ppm_7, ppm_9, adc_135, adc_7, adc_9);
+    
+    Serial.println("\n📊 === AIR QUALITY DATA ===");
     Serial.println("🌡️ Temp: " + String(temp, 1) + "°C");
-    Serial.println("💧 Hum: " + String(hum, 1) + "%");
+    Serial.println("💧 Humidity: " + String(hum, 1) + "%");
+    Serial.println("🏭 AQI: " + String(aqi, 1) + " (" + getStatusUdara(aqi) + ")");
+    Serial.println("📈 MQ135: " + String(ppm_135, 1) + " ppm (ADC:" + String(adc_135) + ")");
+    Serial.println("☠️ MQ7: " + String(ppm_7, 1) + " ppm (ADC:" + String(adc_7) + ")");
+    Serial.println("🔥 MQ9: " + String(ppm_9, 1) + " ppm (ADC:" + String(adc_9) + ")");
     Serial.println("📋 Protocol: " + currentConfig.protocol);
     
     bool success = false;
@@ -394,11 +709,13 @@ bool sendSensorData() {
     else {
         Serial.println("⚠️ Unknown protocol: " + proto);
         Serial.println("💡 Valid: HTTP, HTTPS, MQTT, MQTTS, SERIAL");
-        return false;
     }
     
+    // Matikan LED setelah pengiriman selesai
+    stopLEDIndicator();
+    
     if (success) {
-        Serial.println("✅ Sent via " + currentConfig.protocol);
+        Serial.println("✅ Data sent via " + currentConfig.protocol);
     } else {
         Serial.println("❌ Failed via " + currentConfig.protocol);
     }
@@ -421,8 +738,9 @@ void publishHeartbeat() {
     doc["rssi"] = WiFi.RSSI();
     doc["ip"] = WiFi.localIP().toString();
     doc["free_heap"] = ESP.getFreeHeap();
+    doc["sensor_type"] = "AQI Monitor";
     
-    char buffer[200];
+    char buffer[256];
     serializeJson(doc, buffer);
     
     if (mqttClient.publish(statusTopic.c_str(), buffer)) {
@@ -443,12 +761,12 @@ bool parseJSONConfig(const char* jsonData) {
     }
 
     currentConfig.nfcId = doc["nfcId"] | "UNKNOWN";
-    currentConfig.deviceName = doc["deviceName"] | "sensor";
+    currentConfig.deviceName = doc["deviceName"] | "aqi-sensor";
     currentConfig.wifi = doc["wifi"] | "";
     currentConfig.wifiPassword = doc["wifiPassword"] | "";
     currentConfig.serverUrl = doc["serverUrl"] | "";
     currentConfig.serverPort = doc["serverPort"] | 0;
-    currentConfig.sensorType = doc["sensorType"] | "generic";
+    currentConfig.sensorType = doc["sensorType"] | "AQI";
     currentConfig.interval = doc["interval"] | DEFAULT_SENSOR_INTERVAL;
     currentConfig.deviceStatus = doc["deviceStatus"] | "active";
     currentConfig.timestamp = doc["timestamp"] | "";
@@ -460,7 +778,6 @@ bool parseJSONConfig(const char* jsonData) {
     currentConfig.apiKey = doc["apiKey"] | "";
     currentConfig.endpoint = doc["endpoint"] | "";
 
-    // Validation
     if (currentConfig.protocol != "SERIAL") {
         if (currentConfig.wifi.length() == 0) {
             Serial.println("❌ WiFi SSID required for network protocols");
@@ -472,7 +789,6 @@ bool parseJSONConfig(const char* jsonData) {
         }
     }
 
-    // Auto-set default ports
     if (currentConfig.serverPort == 0) {
         if (currentConfig.protocol == "HTTP") currentConfig.serverPort = 80;
         else if (currentConfig.protocol == "HTTPS") currentConfig.serverPort = 443;
@@ -695,20 +1011,51 @@ void setup() {
     Serial.begin(115200);
     while (!Serial) delay(10);
     
-    Serial.println("\n🚀 ESP32 NFC Multi-Protocol v2.2");
+    Serial.println("\n🚀 ESP32 AQI Monitor NFC v3.0");
     Serial.println("====================================");
+    Serial.println("📊 Sensors:");
+    Serial.println("   • MQ135 (Air Quality)");
+    Serial.println("   • MQ7 (Carbon Monoxide)");
+    Serial.println("   • MQ9 (CO & Flammable Gas)");
+    Serial.println("   • DHT22 (Temp & Humidity)");
     Serial.println("✨ Protocols:");
     Serial.println("   • HTTP / HTTPS");
     Serial.println("   • MQTT / MQTTS");
     Serial.println("   • Serial Output");
+    Serial.println("💡 LED Indicator: Pin " + String(LED_PIN));
     Serial.println("====================================");
     
+    // Init pins
+    pinMode(LED_PIN, OUTPUT);
+    pinMode(CALIB_BUTTON_PIN, INPUT_PULLUP);
+    digitalWrite(LED_PIN, LOW);
+    
+    // Init EEPROM
+    if (!EEPROM.begin(EEPROM_SIZE)) {
+        Serial.println("ERROR: Gagal inisialisasi EEPROM!");
+        while (1) {
+            digitalWrite(LED_PIN, !digitalRead(LED_PIN));
+            delay(200);
+        }
+    }
+    
+    // Init DHT
+    dht.begin();
+    Serial.println("✓ Sensor DHT22 initialized");
+    
+    // Load calibration
+    bacaEEPROM();
+    
+    // Init NFC
     nfc.begin();
     
     uint32_t versiondata = nfc.getFirmwareVersion();
     if (!versiondata) {
         Serial.println("❌ PN532 not found!");
-        while (1) delay(1000);
+        while (1) {
+            digitalWrite(LED_PIN, !digitalRead(LED_PIN));
+            delay(500);
+        }
     }
     
     Serial.print("✅ Found PN5");
@@ -717,14 +1064,29 @@ void setup() {
     nfc.SAMConfig();
     WiFi.mode(WIFI_STA);
     
-    // Setup MQTT client
+    // Setup MQTT
     mqttClient.setCallback(mqttCallback);
     mqttClient.setBufferSize(512);
     mqttClient.setKeepAlive(60);
     mqttClient.setSocketTimeout(15);
     
+    // Pemanasan sensor gas
+    Serial.println("\n⏳ Warming up MQ sensors (30 seconds)...");
+    for (int i = 30; i > 0; i--) {
+        Serial.print("   Remaining: ");
+        Serial.print(i);
+        Serial.println(" seconds");
+        
+        // Blink LED during warmup
+        digitalWrite(LED_PIN, i % 2);
+        delay(1000);
+    }
+    digitalWrite(LED_PIN, LOW);
+    Serial.println("✓ Sensors ready!");
+    
     Serial.println("\n⏳ Ready! Place NFC tag...");
-    Serial.println("💡 Type 'help' for commands\n");
+    Serial.println("💡 Commands: help, status, send, config, calib");
+    Serial.println("🔘 Press calibration button for sensor calibration\n");
     
     lastReleaseTime = millis();
     lastWifiCheck = millis();
@@ -736,6 +1098,9 @@ void setup() {
 
 void loop() {
     unsigned long currentTime = millis();
+    
+    // Check calibration button
+    cekTombolKalibrasi();
     
     // Field release
     if (currentTime - lastReleaseTime >= RELEASE_INTERVAL) {
@@ -767,7 +1132,7 @@ void loop() {
         }
     }
     
-    // Send sensor data
+    // Send sensor data with LED indicator
     if (configurationValid && currentTime - lastSensorSend >= getSensorInterval()) {
         if (currentConfig.protocol == "SERIAL" || wifiConnected) {
             sendSensorData();
@@ -824,8 +1189,8 @@ void loop() {
         cmd.toLowerCase();
         
         if (cmd == "status") {
-            Serial.println("\n📊 === STATUS ===");
-            Serial.println("Tag: " + String(tagPresent ? "YES" : "NO"));
+            Serial.println("\n📊 === SYSTEM STATUS ===");
+            Serial.println("NFC Tag: " + String(tagPresent ? "PRESENT" : "ABSENT"));
             Serial.println("Config: " + String(configurationValid ? "VALID" : "INVALID"));
             Serial.println("WiFi: " + String(wifiConnected ? "CONNECTED" : "DISCONNECTED"));
             
@@ -841,25 +1206,14 @@ void loop() {
                 
                 if (currentConfig.protocol == "MQTT" || currentConfig.protocol == "MQTTS") {
                     Serial.println("📬 MQTT: " + String(mqttClient.connected() ? "CONNECTED ✅" : "DISCONNECTED ❌"));
-                    if (!mqttClient.connected()) {
-                        int state = mqttClient.state();
-                        Serial.print("   State: ");
-                        switch(state) {
-                            case -4: Serial.println("TIMEOUT"); break;
-                            case -3: Serial.println("CONNECTION_LOST"); break;
-                            case -2: Serial.println("CONNECT_FAILED"); break;
-                            case -1: Serial.println("DISCONNECTED"); break;
-                            case 1: Serial.println("BAD_PROTOCOL"); break;
-                            case 2: Serial.println("BAD_CLIENT_ID"); break;
-                            case 3: Serial.println("UNAVAILABLE"); break;
-                            case 4: Serial.println("BAD_CREDENTIALS"); break;
-                            case 5: Serial.println("UNAUTHORIZED"); break;
-                            default: Serial.println("UNKNOWN (" + String(state) + ")");
-                        }
-                    }
                 }
             }
-            Serial.println("=================");
+            
+            Serial.println("\n📊 Calibration:");
+            Serial.println("Ro MQ135: " + String(Ro_MQ135, 2) + " kΩ");
+            Serial.println("Ro MQ7: " + String(Ro_MQ7, 2) + " kΩ");
+            Serial.println("Ro MQ9: " + String(Ro_MQ9, 2) + " kΩ");
+            Serial.println("========================");
             
         } else if (cmd == "send") {
             if (configurationValid) {
@@ -898,64 +1252,58 @@ void loop() {
                 Serial.println("\n📋 === CONFIGURATION ===");
                 Serial.println("🆔 NFC ID: " + currentConfig.nfcId);
                 Serial.println("📱 Device: " + currentConfig.deviceName);
-                Serial.println("📡 WiFi SSID: " + currentConfig.wifi);
+                Serial.println("📡 WiFi: " + currentConfig.wifi);
                 Serial.println("🌐 Server: " + currentConfig.serverUrl);
                 Serial.println("🔌 Port: " + String(currentConfig.serverPort));
                 Serial.println("📡 Protocol: " + currentConfig.protocol);
                 Serial.println("📊 Sensor: " + currentConfig.sensorType);
                 Serial.println("⏱️ Interval: " + String(currentConfig.interval) + "ms");
-                
-                if (currentConfig.protocol == "MQTT" || currentConfig.protocol == "MQTTS") {
-                    Serial.println("\n📬 MQTT Topic: " + (currentConfig.mqttTopic.length() > 0 ? currentConfig.mqttTopic : "sensors/" + currentConfig.deviceName));
-                    Serial.println("👤 Username: " + (currentConfig.mqttUsername.length() > 0 ? currentConfig.mqttUsername : "(none - public)"));
-                }
-                
-                if (currentConfig.endpoint.length() > 0) {
-                    Serial.println("🎯 Endpoint: " + currentConfig.endpoint);
-                }
-                
-                Serial.println("📦 Version: " + currentConfig.version);
                 Serial.println("========================");
             } else {
-                Serial.println("\n❌ No valid configuration loaded");
+                Serial.println("\n❌ No valid configuration");
             }
+            
+        } else if (cmd == "calib") {
+            Serial.println("\n🎛️ Starting manual calibration...");
+            kalibrasiSensor();
             
         } else if (cmd == "release") {
             Serial.println("\n🎛️ Manual NFC field release");
             releaseNFCField();
             
         } else if (cmd == "test") {
-            Serial.println("\n🧪 === DIAGNOSTIC TEST ===");
-            Serial.println("1️⃣ WiFi Status: " + String(WiFi.status()));
-            Serial.println("2️⃣ Config Valid: " + String(configurationValid));
+            Serial.println("\n🧪 === SENSOR TEST ===");
+            float temp, hum, aqi;
+            float ppm_135, ppm_7, ppm_9;
+            int adc_135, adc_7, adc_9;
             
-            if (configurationValid) {
-                Serial.println("3️⃣ Protocol: " + currentConfig.protocol);
-                Serial.println("4️⃣ Server: " + currentConfig.serverUrl);
-                Serial.println("5️⃣ Port: " + String(currentConfig.serverPort));
-                
-                if (currentConfig.protocol == "MQTT" || currentConfig.protocol == "MQTTS") {
-                    Serial.println("6️⃣ MQTT Connected: " + String(mqttClient.connected()));
-                    Serial.println("7️⃣ MQTT State: " + String(mqttClient.state()));
-                }
-            }
+            readSensorData(temp, hum, aqi, ppm_135, ppm_7, ppm_9, adc_135, adc_7, adc_9);
+            
+            Serial.println("🌡️ Temperature: " + String(temp, 1) + "°C");
+            Serial.println("💧 Humidity: " + String(hum, 1) + "%");
+            Serial.println("🏭 AQI: " + String(aqi, 1) + " (" + getStatusUdara(aqi) + ")");
+            Serial.println("\n📈 Gas Sensors:");
+            Serial.println("MQ135: " + String(ppm_135, 1) + " ppm (ADC: " + String(adc_135) + ")");
+            Serial.println("MQ7: " + String(ppm_7, 1) + " ppm (ADC: " + String(adc_7) + ")");
+            Serial.println("MQ9: " + String(ppm_9, 1) + " ppm (ADC: " + String(adc_9) + ")");
             Serial.println("========================");
             
         } else if (cmd == "help") {
             Serial.println("\n📖 === COMMANDS ===");
-            Serial.println("status   - Show system status");
-            Serial.println("send     - Send test sensor data");
+            Serial.println("status   - System status");
+            Serial.println("send     - Send test data");
             Serial.println("wifi     - Reconnect WiFi");
-            Serial.println("mqtt     - Reconnect MQTT broker");
-            Serial.println("config   - Display configuration");
+            Serial.println("mqtt     - Reconnect MQTT");
+            Serial.println("config   - Show configuration");
+            Serial.println("calib    - Calibrate sensors");
+            Serial.println("test     - Test sensor readings");
             Serial.println("release  - Release NFC field");
-            Serial.println("test     - Run diagnostic test");
             Serial.println("help     - Show this help");
             Serial.println("===================");
             
         } else if (cmd.length() > 0) {
-            Serial.println("\n❓ Unknown command: '" + cmd + "'");
-            Serial.println("💡 Type 'help' for available commands");
+            Serial.println("\n❓ Unknown: '" + cmd + "'");
+            Serial.println("💡 Type 'help'");
         }
     }
 }
